@@ -10,13 +10,14 @@ const config: Config = {
     extend: {
       colors: {
         court: {
-          bg: '#1a1a2e',
-          card: '#16213e',
-          border: '#0f3460',
-          accent: '#e94560',
-          accentHover: '#ff6b6b',
-          text: '#eaeaea',
-          textMuted: '#8892b0',
+          bg: '#ffffff',
+          card: '#ffffff',
+          surface: '#f8fafc',
+          border: '#e2e8f0',
+          accent: '#ed174c',
+          accentHover: '#c8102e',
+          text: '#172033',
+          textMuted: '#64748b',
           success: '#00d9a5',
           warning: '#ffd700',
           danger: '#ff4757',

@@ -193,11 +193,19 @@ export async function DashboardContent() {
     <div className="animate-in">
       <section
         aria-label="Painel inicial NBA"
-        className="relative isolate w-full overflow-hidden bg-[#ed174b] text-white"
+        className="relative isolate w-full overflow-hidden bg-white text-white"
       >
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[#006BB6] [clip-path:polygon(0_0,45%_0,59%_100%,0_100%)]"
+          className="pointer-events-none absolute inset-0 bg-[#ed174b]"
+          style={{ clipPath: "polygon(50% 0, 100% 0, 100% 100%, 62% 100%)" }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-0 h-[90%] w-full bg-[#006BB6]"
+          style={{
+            clipPath: "polygon(0 0, 50% 0, 62% 100%, 0 100%)",
+          }}
         />
         <div className="relative mx-auto grid min-h-[70svh] grid-cols-1 items-stretch lg:grid-cols-[minmax(270px,1fr)_minmax(260px,0.8fr)_minmax(280px,1fr)]">
           <aside className="relative z-10 order-2 flex items-center px-6 py-7 sm:px-10 lg:order-1 lg:px-12 lg:py-12">
@@ -206,7 +214,7 @@ export async function DashboardContent() {
               creditUsage={data.credit_usage}
             />
           </aside>
-          <div className="relative order-1 min-h-[50vh] overflow-hidden lg:order-2 lg:min-h-0">
+          <div className="relative order-1 min-h-[50vh] lg:order-2 lg:min-h-0">
             <PlayerSpotlight />
           </div>
           <div className="relative z-10 order-3 flex items-center px-6 py-7 sm:px-10 lg:px-12 lg:py-12">

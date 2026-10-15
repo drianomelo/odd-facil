@@ -28,7 +28,7 @@ export function PlayerSpotlight() {
       <img
         src={fullBodyImages[activeImage]}
         alt=""
-        className="absolute inset-x-0 bottom-0 mx-auto h-[96%] max-h-[850px] w-full object-contain object-bottom transition-opacity duration-700"
+        className="absolute inset-x-0 -bottom-4 mx-auto h-[96%] max-h-[850px] w-full object-contain object-bottom transition-opacity duration-700"
         key={fullBodyImages[activeImage]}
       />
     </div>
