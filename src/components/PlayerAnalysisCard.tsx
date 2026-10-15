@@ -2,6 +2,7 @@
 
 import { formatAppDateTime } from '@/lib/utils/date';
 import { PlayerPropCandidate, PlayerPropMarket } from '@/lib/analysis/player-props';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 const MARKET_LABELS: Record<PlayerPropMarket, string> = {
   player_points: 'Pontos',
@@ -36,10 +37,13 @@ export function PlayerAnalysisCard({ pick, selected = false, disabled = false, o
   return (
     <article className="card space-y-3">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs text-court-textMuted">{pick.game} · {formatAppDateTime(pick.commenceTime)}</p>
-          <h4 className="mt-1 font-semibold text-court-text">{pick.player}</h4>
-          <p className="text-sm text-court-textMuted">{MARKET_LABELS[pick.market]} · {side} {pick.line}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <PlayerAvatar name={pick.player} size="lg" />
+          <div className="min-w-0">
+            <p className="text-xs text-court-textMuted">{pick.game} · {formatAppDateTime(pick.commenceTime)}</p>
+            <h4 className="mt-1 font-semibold text-court-text">{pick.player}</h4>
+            <p className="text-sm text-court-textMuted">{MARKET_LABELS[pick.market]} · {side} {pick.line}</p>
+          </div>
         </div>
         <span className={`badge ${pick.shortlistEligible ? 'badge-success' : 'badge-warning'}`}>
           {pick.shortlistEligible ? 'Candidato para validação' : !pick.teamVerified ? 'Exploratório · time não confirmado' : pick.sampleSize < 15 ? 'Exploratório · amostra curta' : 'Exploratório · minutos instáveis'}

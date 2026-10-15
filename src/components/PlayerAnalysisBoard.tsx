@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { PlayerAnalysisCard } from '@/components/PlayerAnalysisCard';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { PlayerPropCandidate, PlayerPropMarket, PlayerPropQuote } from '@/lib/analysis/player-props';
 
 const MARKET_LABELS: Record<PlayerPropMarket, string> = {
@@ -167,9 +168,12 @@ export function PlayerAnalysisBoard({ groups }: { groups: Group[] }) {
                   const quote = sideQuote(pick).find(item => bookKey(item) === selectedBook?.key);
                   return (
                     <li key={pick.id} className="flex items-start justify-between gap-3 rounded-lg border border-court-border bg-court-surface/60 p-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-court-text">{index + 1}. {pick.player} · {MARKET_LABELS[pick.market]} {pick.recommendationSide === 'Under' ? 'Menos de' : 'Mais de'} {pick.line}</p>
-                        <p className="mt-1 text-xs text-court-textMuted">{pick.game} · {quote ? `${quote.price > 0 ? '+' : ''}${quote.price}` : 'sem cotação nesta casa'}</p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <PlayerAvatar name={pick.player} size="sm" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-court-text">{index + 1}. {pick.player} · {MARKET_LABELS[pick.market]} {pick.recommendationSide === 'Under' ? 'Menos de' : 'Mais de'} {pick.line}</p>
+                          <p className="mt-1 text-xs text-court-textMuted">{pick.game} · {quote ? `${quote.price > 0 ? '+' : ''}${quote.price}` : 'sem cotação nesta casa'}</p>
+                        </div>
                       </div>
                       <button type="button" onClick={() => togglePick(pick)} className="shrink-0 text-xs font-medium text-court-danger hover:underline">Remover</button>
                     </li>
