@@ -163,35 +163,3 @@
     to { opacity: 1; transform: translateY(0); }
   }
 }
-
-@keyframes player-spotlight-cycle-one {
-  0%, 45% { opacity: 1; }
-  50%, 95% { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-@keyframes player-spotlight-cycle-two {
-  0%, 45% { opacity: 0; }
-  50%, 95% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-.player-spotlight-image-0 {
-  animation: player-spotlight-cycle-one 10s infinite;
-}
-
-.player-spotlight-image-1 {
-  animation: player-spotlight-cycle-two 10s infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .player-spotlight-image-0 {
-    animation: none;
-    opacity: 1;
-  }
-
-  .player-spotlight-image-1 {
-    animation: none;
-    opacity: 0;
-  }
-}
