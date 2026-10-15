@@ -188,7 +188,7 @@ export default function ManualPage() {
               <PageGuide title="NBA — análise do dia" href="/" linkLabel="Abrir NBA">
                 <ul className="list-disc space-y-2 pl-5">
                   <li><strong className="text-court-text">Status das fontes:</strong> mostra se as chaves estão configuradas, o estado informado e, quando disponível, os créditos da The Odds API. Uma chave configurada não garante que todos os dados estejam atualizados.</li>
-                  <li><strong className="text-court-text">Resumo no topo:</strong> oportunidades qualificadas, jogos agendados e créditos API restantes da cota indicada no sistema.</li>
+                  <li><strong className="text-court-text">Painel inicial:</strong> configurações, status das fontes e créditos API ficam à esquerda; os jogadores em destaque alternam no centro; à direita aparecem palpites no radar, jogos agendados, oportunidades qualificadas e horários de atualização.</li>
                   <li><strong className="text-court-text">Radar de props:</strong> apresenta até dois destaques por mercado, além da contagem de props analisadas e quantas passaram pelos filtros de validação. Expanda “Ver cálculos e limitações do modelo” para ler justificativas e alertas.</li>
                   <li><strong className="text-court-text">Bilhetes:</strong> veja as opções prontas ou marque até 10 destaques de diferentes mercados em “Montar meu bilhete”. Escolha uma casa disponível para todas as pernas e salve para acompanhar no Histórico.</li>
                   <li><strong className="text-court-text">Oportunidades do dia:</strong> mercados de partida baseados nas odds disponíveis. “Qualificada” aplica os limites atuais de EV e completude (padrão: 5% e 60%); é diferente do filtro de qualidade de props de jogadores.</li>
@@ -203,8 +203,9 @@ export default function ManualPage() {
                 <p className="mt-2">Status: <strong className="text-court-text">Pendente</strong> aguarda apuração; <strong className="text-court-text">Acertou</strong> e <strong className="text-court-text">Errou</strong> comparam o valor real à seleção; <strong className="text-court-text">Push</strong> indica empate na linha; <strong className="text-court-text">Anulada</strong> indica que não foi possível liquidar a previsão.</p>
               </PageGuide>
 
-              <PageGuide title="Desempenho — avaliação agregada" href="/performance" linkLabel="Abrir Desempenho">
-                <p>Resume previsões da temporada regular e separa acertos, erros, pushes, anuladas, ROI observado e resultados por mercado. Também lista os últimos palpites apurados. A pré-temporada pode ser consultada à parte no Histórico.</p>
+              <PageGuide title="Desempenho — previsões e apostas" href="/performance" linkLabel="Abrir Desempenho">
+                <p>A aba “Resultados gerais” resume previsões individuais da temporada regular, com acertos, erros, pushes, anuladas, ROI observado e resultados por mercado. Também lista os últimos palpites apurados. A pré-temporada pode ser consultada à parte no Histórico.</p>
+                <p className="mt-2">A aba “Meus bilhetes salvos” mostra somente os bilhetes registrados como apostas pessoais: status combinado, valor apostado, retorno e lucro/prejuízo. Para corrigir odds, retornos ou o resultado da casa, abra a aposta no Histórico.</p>
                 <p className="mt-2">Acerto é calculado sobre resultados decisivos (acertos e erros). Erro médio compara a projeção com a estatística final; menor tende a ser melhor. Brier compara a probabilidade registrada com o resultado de acerto/erro; quanto menor, melhor. ROI e unidades são retrospectivos e consideram apenas palpites apurados com cotação salva.</p>
                 <p className="mt-2">Se ainda não há resultados, os campos mostram “—” ou “aguardando”. Isso significa que falta observação, não que o modelo teve desempenho zero.</p>
               </PageGuide>

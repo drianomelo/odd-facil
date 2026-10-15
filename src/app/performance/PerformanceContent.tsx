@@ -76,6 +76,7 @@ export function PerformanceContent() {
   const [data, setData] = useState<Performance | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'model' | 'tickets'>('model');
 
   async function load() {
     setLoading(true);
@@ -98,27 +99,32 @@ export function PerformanceContent() {
     <section className="space-y-7" aria-labelledby="performance-title">
       <div className="flex flex-col gap-3 border-b border-court-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 id="performance-title" className="text-2xl font-bold text-court-text sm:text-3xl">Desempenho do modelo</h1>
+          <h1 id="performance-title" className="text-2xl font-bold text-court-text sm:text-3xl">Desempenho</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-court-textMuted">
-            Acompanhe as previsões da temporada regular depois dos jogos. Os números abaixo medem o histórico registrado; ainda não comprovam rentabilidade futura.
+            Consulte separadamente os resultados gerais das previsões e o desempenho dos bilhetes que você salvou como apostas.
           </p>
         </div>
-        <Link href="/history?phase=regular" className="text-sm font-medium text-court-accent underline-offset-4 hover:underline">Ver previsões registradas</Link>
+        <Link href={activeTab === 'model' ? '/history?phase=regular' : '/history'} className="text-sm font-medium text-court-accent underline-offset-4 hover:underline">{activeTab === 'model' ? 'Ver previsões registradas' : 'Gerenciar apostas no Histórico'}</Link>
       </div>
 
-      {error && (
+      <div className="flex gap-2 border-b border-court-border" role="tablist" aria-label="Desempenho por origem">
+        <button type="button" role="tab" aria-selected={activeTab === 'model'} onClick={() => setActiveTab('model')} className={`border-b-2 px-3 py-2 text-sm font-medium ${activeTab === 'model' ? 'border-court-accent text-court-text' : 'border-transparent text-court-textMuted'}`}>Resultados gerais</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')} className={`border-b-2 px-3 py-2 text-sm font-medium ${activeTab === 'tickets' ? 'border-court-accent text-court-text' : 'border-transparent text-court-textMuted'}`}>Meus bilhetes salvos</button>
+      </div>
+
+      {activeTab === 'model' && error && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-y border-court-danger/40 py-4 text-sm text-court-text">
           <p>{error}</p>
           <button type="button" onClick={() => void load()} className="font-medium text-court-accent underline underline-offset-4">Tentar novamente</button>
         </div>
       )}
 
-      {loading && !data ? (
+      {activeTab === 'model' && loading && !data ? (
         <div className="space-y-4" aria-label="Carregando desempenho">
           <div className="h-24 animate-pulse rounded-lg bg-court-card" />
           <div className="h-56 animate-pulse rounded-lg bg-court-card" />
         </div>
-      ) : data ? (
+      ) : activeTab === 'model' && data ? (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3 border-y border-court-border py-4" aria-live="polite">
             <p className="text-sm text-court-text">
@@ -228,11 +234,11 @@ export function PerformanceContent() {
             )}
           </section>
 
-          <p className="text-xs leading-5 text-court-textMuted">
-            Esta página avalia cada previsão individual com sua linha e cotação registradas. O resultado dos bilhetes combinados e de cada perna fica no Histórico.
-          </p>
+          <p className="text-xs leading-5 text-court-textMuted">Esta aba mede as previsões individuais do modelo. As apostas salvas e seus resultados financeiros ficam na aba “Meus bilhetes salvos”.</p>
         </>
       ) : null}
+
+      {activeTab === 'tickets' && <SavedTicketPerformance />}
     </section>
   );
 }
@@ -244,5 +250,106 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
       <dd className="mt-1 text-xl font-semibold tabular-nums text-court-text">{value}</dd>
       {detail && <p className="mt-1 text-[11px] leading-4 text-court-textMuted">{detail}</p>}
     </div>
+  );
+}
+
+type PersonalTicket = {
+  id: string;
+  label: string;
+  bookmaker: string;
+  combinedDecimalOdds: number | null;
+  stakeAmount: number;
+  potentialReturn: number | null;
+  actualReturn: number | null;
+  createdAt: string;
+  outcome: 'pending' | 'won' | 'lost' | 'push/void';
+  outcomeSource: 'manual' | 'forecast';
+};
+
+const TICKET_OUTCOME_LABELS: Record<PersonalTicket['outcome'], string> = {
+  pending: 'Pendente',
+  won: 'Ganhou',
+  lost: 'Perdeu',
+  'push/void': 'Devolvida / anulada',
+};
+
+function currency(value: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+function ticketReturn(ticket: PersonalTicket): number | null {
+  if (ticket.outcome === 'pending') return null;
+  if (ticket.actualReturn !== null) return ticket.actualReturn;
+  if (ticket.outcome === 'lost') return 0;
+  if (ticket.outcome === 'push/void') return ticket.stakeAmount;
+  if (ticket.potentialReturn !== null) return ticket.potentialReturn;
+  return ticket.combinedDecimalOdds === null ? null : ticket.stakeAmount * ticket.combinedDecimalOdds;
+}
+
+function SavedTicketPerformance() {
+  const [tickets, setTickets] = useState<PersonalTicket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/analysis/nba/tickets', { cache: 'no-store' })
+      .then(async response => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Não foi possível carregar os bilhetes salvos.');
+        if (active) setTickets(body.tickets as PersonalTicket[]);
+      })
+      .catch(loadError => { if (active) setError(loadError instanceof Error ? loadError.message : 'Falha ao carregar os bilhetes.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  if (loading) return <div className="h-40 animate-pulse rounded-lg bg-court-card" aria-label="Carregando bilhetes salvos" />;
+  if (error) return <p role="alert" className="border-y border-court-danger/40 py-4 text-sm text-court-danger">{error}</p>;
+  if (!tickets.length) return <div className="border-y border-court-border py-8"><h2 className="font-semibold text-court-text">Nenhum bilhete salvo ainda</h2><p className="mt-2 text-sm text-court-textMuted">Quando salvar uma sugestão ou montar seu bilhete no dashboard, o resultado aparecerá aqui separado das métricas gerais.</p><Link href="/" className="mt-3 inline-block text-sm font-medium text-court-accent underline-offset-4 hover:underline">Ir para o dashboard NBA</Link></div>;
+
+  const totalStaked = tickets.reduce((total, ticket) => total + ticket.stakeAmount, 0);
+  const settled = tickets.filter(ticket => ticket.outcome !== 'pending');
+  const withKnownReturn = settled.filter(ticket => ticketReturn(ticket) !== null);
+  const settledStake = withKnownReturn.reduce((total, ticket) => total + ticket.stakeAmount, 0);
+  const returned = withKnownReturn.reduce((total, ticket) => total + (ticketReturn(ticket) ?? 0), 0);
+  const profit = returned - settledStake;
+  const wins = tickets.filter(ticket => ticket.outcome === 'won').length;
+  const losses = tickets.filter(ticket => ticket.outcome === 'lost').length;
+  const pending = tickets.filter(ticket => ticket.outcome === 'pending').length;
+  const unknownReturns = settled.length - withKnownReturn.length;
+
+  return (
+    <section className="space-y-5" aria-labelledby="saved-bet-performance-title">
+      <div>
+        <h2 id="saved-bet-performance-title" className="text-lg font-semibold text-court-text">Desempenho dos bilhetes salvos</h2>
+        <p className="mt-1 text-sm text-court-textMuted">Somente bilhetes registrados como apostas pessoais entram nestes números. O retorno recebido informado por você prevalece sobre a estimativa.</p>
+      </div>
+      <dl className="grid grid-cols-2 divide-x divide-y divide-court-border border-y border-court-border sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
+        <Metric label="Bilhetes salvos" value={String(tickets.length)} />
+        <Metric label="Pendentes" value={String(pending)} />
+        <Metric label="Ganhos / perdidos" value={`${wins} / ${losses}`} />
+        <Metric label="Total apostado" value={currency(totalStaked)} />
+        <Metric label="Retorno apurado" value={currency(returned)} detail={`${withKnownReturn.length} resultados com retorno calculável`} />
+        <Metric label="Lucro / prejuízo" value={withKnownReturn.length ? currency(profit) : '—'} detail={settledStake ? `ROI ${((profit / settledStake) * 100).toFixed(1)}%` : 'Aguardando apurações'} />
+      </dl>
+      {unknownReturns > 0 && <p className="text-xs leading-5 text-court-textMuted">{unknownReturns} bilhete(s) apurado(s) sem odd combinada ou retorno real informado não entram no cálculo financeiro. Você pode completar os dados no <Link href="/history" className="text-court-accent underline underline-offset-4">Histórico</Link>.</p>}
+      <div className="space-y-2">
+        {tickets.slice(0, 10).map(ticket => (
+          <article key={ticket.id} className="flex flex-col gap-3 border-b border-court-border py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium text-court-text">{ticket.label}</p>
+              <p className="mt-1 text-xs text-court-textMuted">{ticket.bookmaker} · odd {ticket.combinedDecimalOdds?.toFixed(2) ?? 'não estimada'} · apostado {currency(ticket.stakeAmount)} · {ticket.outcomeSource === 'manual' ? 'resultado da casa' : 'apuração do sistema'}</p>
+            </div>
+            <div className="flex items-center gap-3 sm:text-right">
+              <span className={`rounded px-2 py-1 text-xs font-semibold ${ticket.outcome === 'won' ? 'bg-court-success/15 text-court-success' : ticket.outcome === 'lost' ? 'bg-court-danger/15 text-court-danger' : 'bg-court-warning/15 text-court-warning'}`}>{TICKET_OUTCOME_LABELS[ticket.outcome]}</span>
+              <span className="text-xs text-court-textMuted">Retorno {ticketReturn(ticket) === null ? '—' : currency(ticketReturn(ticket)!)}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+      {tickets.length > 10 && <p className="text-xs text-court-textMuted">Mostrando 10 bilhetes recentes de {tickets.length}. <Link href="/history" className="text-court-accent underline-offset-4 hover:underline">Abrir todos no Histórico</Link></p>}
+      <p className="text-xs leading-5 text-court-textMuted">O resultado geral do modelo continua na aba “Resultados gerais” e mede previsões individuais, mesmo quando elas não foram incluídas em uma aposta.</p>
+    </section>
   );
 }

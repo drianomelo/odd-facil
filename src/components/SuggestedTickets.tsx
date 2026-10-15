@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { BetSelection, buildSuggestedTickets } from '@/lib/analysis/bet-builder';
 import { PlayerPropMarket } from '@/lib/analysis/player-props';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
 
 const MARKET_LABELS: Record<PlayerPropMarket, string> = {
   player_points: 'Pontos',
@@ -113,12 +114,15 @@ export function SuggestedTickets({ tickets, saveEnabled = true }: { tickets: Ret
 function TicketSelection({ leg }: { leg: BetSelection }) {
   const marketLabel = MARKET_LABELS[leg.market];
   return (
-    <div className="py-3 first:pt-0 last:pb-0">
-      <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-sm">
-        <span className="font-medium text-court-text">{leg.player} · {marketLabel} {leg.side === 'Over' ? 'Mais de' : 'Menos de'} {leg.line}</span>
-        <span className="font-mono text-court-text">{leg.quote.price > 0 ? '+' : ''}{leg.quote.price}</span>
+    <div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+      <PlayerAvatar name={leg.player} size="sm" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-sm">
+          <span className="font-medium text-court-text">{leg.player} · {marketLabel} {leg.side === 'Over' ? 'Mais de' : 'Menos de'} {leg.line}</span>
+          <span className="font-mono text-court-text">{leg.quote.price > 0 ? '+' : ''}{leg.quote.price}</span>
+        </div>
+        <p className="mt-1 text-xs text-court-textMuted">{leg.game} · {leg.quote.bookmaker} · chance individual {Math.round(leg.probability * 100)}% · amostra {leg.sampleSize} jogos</p>
       </div>
-      <p className="mt-1 text-xs text-court-textMuted">{leg.game} · {leg.quote.bookmaker} · chance individual {Math.round(leg.probability * 100)}% · amostra {leg.sampleSize} jogos</p>
     </div>
   );
 }
