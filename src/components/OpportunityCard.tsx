@@ -9,20 +9,19 @@ interface OpportunityCardProps {
 }
 
 export function OpportunityCard({ opportunity }: OpportunityCardProps) {
-  const evColor = opportunity.expected_value > 0.1 ? 'text-court-success' : 
-                  opportunity.expected_value > 0.05 ? 'text-court-warning' : 'text-court-danger';
+  const evColor = opportunity.expected_value > 0.1 ? 'text-emerald-700' :
+                  opportunity.expected_value > 0.05 ? 'text-amber-800' : 'text-[#b3133b]';
   
   const gameTime = formatAppTime(opportunity.game.commence_time);
   const gameDate = formatAppDateTime(opportunity.game.commence_time).split(' ')[0];
 
   return (
-    <article className="card card-hover relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-1 h-full bg-court-accent" />
+    <article className="card relative overflow-hidden border-[#58A9E3]/50 bg-white shadow-sm transition-all hover:border-[#005A9C]/60 hover:shadow-md hover:shadow-[#005A9C]/10">
       {opportunity.qualified && (
-        <div className="absolute top-3 right-3 badge badge-success">QUALIFICADA</div>
+        <div className="absolute top-3 right-3 badge border border-emerald-700/20 bg-emerald-50 text-emerald-800">QUALIFICADA</div>
       )}
       {!opportunity.qualified && (
-        <div className="absolute top-3 right-3 badge badge-warning">NÃO QUALIFICADA</div>
+        <div className="absolute top-3 right-3 badge border border-amber-700/20 bg-amber-50 text-amber-800">NÃO QUALIFICADA</div>
       )}
 
       <div className="space-y-4">
@@ -46,24 +45,24 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
         </div>
 
         <div className="flex items-center justify-between text-sm">
-          <span className="badge badge-info">{MarketLabel[opportunity.market]}</span>
-          <span className="badge badge-info">{SelectionLabel[opportunity.selection]}</span>
+          <span className="badge rounded-full border border-[#58A9E3]/50 bg-[#EAF5FC] text-[#005A9C]">{MarketLabel[opportunity.market]}</span>
+          <span className="badge rounded-full border border-[#58A9E3]/50 bg-[#EAF5FC] text-[#005A9C]">{SelectionLabel[opportunity.selection]}</span>
           {opportunity.line !== null && opportunity.line !== undefined && (
-            <span className="badge bg-court-border text-court-text">
+            <span className="badge rounded-full border border-[#58A9E3]/50 bg-[#EAF5FC] text-[#005A9C]">
               Linha {opportunity.line > 0 ? '+' : ''}{opportunity.line}
             </span>
           )}
         </div>
 
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="p-3 bg-court-bg/50 rounded-lg">
+          <div className="rounded-lg border border-[#58A9E3]/30 bg-[#F4FAFE] p-3">
             <div className="text-lg font-bold font-mono tabular-nums text-court-text">
               {opportunity.odds.toFixed(2)}
             </div>
             <div className="text-xs text-court-textMuted">Odd Coletada</div>
           </div>
           {opportunity.fair_odds && (
-            <div className="p-3 bg-court-bg/50 rounded-lg">
+            <div className="rounded-lg border border-[#58A9E3]/30 bg-[#F4FAFE] p-3">
               <div className="text-lg font-bold font-mono tabular-nums text-court-accent">
                 {opportunity.fair_odds.toFixed(2)}
               </div>
@@ -71,7 +70,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
             </div>
           )}
           {opportunity.estimated_probability && (
-            <div className="p-3 bg-court-bg/50 rounded-lg">
+            <div className="rounded-lg border border-[#58A9E3]/30 bg-[#F4FAFE] p-3">
               <div className="text-lg font-bold font-mono tabular-nums text-court-success">
                 {(opportunity.estimated_probability * 100).toFixed(1)}%
               </div>
@@ -121,9 +120,9 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
 
 function FactorBadge({ factor }: { factor: Factor }) {
   const colors = {
-    favorable: 'bg-court-success/20 text-court-success border-court-success/30',
-    uncertainty: 'bg-court-warning/20 text-court-warning border-court-warning/30',
-    limitation: 'bg-court-textMuted/20 text-court-textMuted border-court-textMuted/30',
+    favorable: 'bg-emerald-50 text-emerald-800 border-emerald-700/20',
+    uncertainty: 'bg-amber-50 text-amber-800 border-amber-700/20',
+    limitation: 'bg-[#EAF5FC] text-slate-700 border-[#58A9E3]/30',
   };
   
   const icons = {

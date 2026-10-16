@@ -28,6 +28,9 @@ export interface PlayerPropCandidate {
   game: string;
   commenceTime: string;
   player: string;
+  team?: string;
+  homeTeam?: string;
+  awayTeam?: string;
   market: PlayerPropMarket;
   line: number;
   projection: number;
@@ -270,6 +273,9 @@ export function analyzePlayerProp(input: {
     game: input.game,
     commenceTime: input.commenceTime,
     player: input.player,
+    team: playerTeam || undefined,
+    homeTeam: input.homeTeam,
+    awayTeam: input.awayTeam,
     market: input.market,
     line: input.line,
     projection: adjustedProjection,

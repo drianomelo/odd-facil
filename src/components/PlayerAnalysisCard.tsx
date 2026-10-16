@@ -3,6 +3,7 @@
 import { formatAppDateTime } from '@/lib/utils/date';
 import { PlayerPropCandidate, PlayerPropMarket } from '@/lib/analysis/player-props';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
+import { TeamLogo, TeamMatchup } from '@/components/TeamLogo';
 
 const MARKET_LABELS: Record<PlayerPropMarket, string> = {
   player_points: 'Pontos',
@@ -35,13 +36,22 @@ export function PlayerAnalysisCard({ pick, selected = false, disabled = false, o
     : `${side === 'Over' ? 'A projeção fica acima' : 'A projeção fica abaixo'} da linha por ${projectionGap.toFixed(1)} ${MARKET_LABELS[pick.market].toLowerCase()}.`;
 
   return (
-    <article className="card space-y-3">
+    <article className="card space-y-3 border-[#58A9E3]/50 bg-white shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <PlayerAvatar name={pick.player} size="lg" />
           <div className="min-w-0">
-            <p className="text-xs text-court-textMuted">{pick.game} · {formatAppDateTime(pick.commenceTime)}</p>
-            <h4 className="mt-1 font-semibold text-court-text">{pick.player}</h4>
+            <p className="flex flex-wrap items-center gap-x-1 text-xs text-court-textMuted">
+              {pick.awayTeam && pick.homeTeam
+                ? <TeamMatchup away={pick.awayTeam} home={pick.homeTeam} />
+                : pick.game}
+              <span aria-hidden="true">·</span>
+              <time dateTime={pick.commenceTime}>{formatAppDateTime(pick.commenceTime)}</time>
+            </p>
+            <div className="mt-1 flex items-center gap-1.5">
+              <h4 className="font-semibold text-court-text">{pick.player}</h4>
+              <TeamLogo team={pick.team} size="xs" />
+            </div>
             <p className="text-sm text-court-textMuted">{MARKET_LABELS[pick.market]} · {side} {pick.line}</p>
           </div>
         </div>
@@ -49,7 +59,7 @@ export function PlayerAnalysisCard({ pick, selected = false, disabled = false, o
           {pick.shortlistEligible ? 'Candidato para validação' : !pick.teamVerified ? 'Exploratório · time não confirmado' : pick.sampleSize < 15 ? 'Exploratório · amostra curta' : 'Exploratório · minutos instáveis'}
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-2 border-y border-court-border py-3 text-center">
+      <div className="grid grid-cols-3 gap-2 border-y border-[#58A9E3]/35 py-3 text-center">
         <div><p className="text-xs text-court-textMuted">Projeção</p><p className="font-mono font-semibold text-court-text">{pick.projection.toFixed(1)}</p></div>
         <div><p className="text-xs text-court-textMuted">Chance modelo</p><p className="font-mono font-semibold text-court-text">{(probability * 100).toFixed(0)}%</p></div>
         <div><p className="text-xs text-court-textMuted">Edge / EV</p><p className="font-mono font-semibold text-court-text">{edge === undefined ? '—' : `${edge >= 0 ? '+' : ''}${(edge * 100).toFixed(1)} p.p.`}</p></div>
@@ -60,12 +70,12 @@ export function PlayerAnalysisCard({ pick, selected = false, disabled = false, o
         <p>Adversário: {pick.teamVerified ? `${pick.opponent} · time confirmado` : 'não confirmado pelo histórico'}</p>
         <p>Amostra: {pick.sampleSize} jogos · confiança {pick.confidence} · L5 {pick.last5Average.toFixed(1)} · L10 {pick.last10Average.toFixed(1)} · L20 {pick.last20Average.toFixed(1)}</p>
       </div>
-      <div className="rounded-lg border border-court-border bg-court-surface/60 p-3 text-sm">
-        <p className="font-medium text-court-text">Leitura do palpite</p>
+      <div className="rounded-lg border border-[#58A9E3]/40 bg-[#EAF5FC] p-3 text-sm">
+        <p className="font-medium text-[#005A9C]">Leitura do palpite</p>
         <p className="mt-1 text-xs leading-5 text-court-textMuted">{interpretation}</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
-            <p className="text-xs font-semibold text-court-success">Sinais a favor</p>
+          <p className="text-xs font-semibold text-emerald-700">Sinais a favor</p>
             <ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-5 text-court-textMuted">
               <li>A média dos últimos 5 jogos ficou {recentAverage >= 0 ? 'acima' : 'abaixo'} da linha por {Math.abs(recentAverage).toFixed(1)}.</li>
               {alignedWithRecentForm
@@ -77,7 +87,7 @@ export function PlayerAnalysisCard({ pick, selected = false, disabled = false, o
             </ul>
           </div>
           <div>
-            <p className="text-xs font-semibold text-court-warning">Pontos de atenção</p>
+            <p className="text-xs font-semibold text-amber-800">Pontos de atenção</p>
             <ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-5 text-court-textMuted">
               <li>Variação recente: L5 {pick.last5Average.toFixed(1)}, L10 {pick.last10Average.toFixed(1)} e L20 {pick.last20Average.toFixed(1)}.</li>
               {pick.minutesTrend === undefined

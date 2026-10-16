@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { BetSelection, buildSuggestedTickets } from '@/lib/analysis/bet-builder';
 import { PlayerPropMarket } from '@/lib/analysis/player-props';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
+import { TeamMatchup } from '@/components/TeamLogo';
 
 const MARKET_LABELS: Record<PlayerPropMarket, string> = {
   player_points: 'Pontos',
@@ -60,24 +61,24 @@ export function SuggestedTickets({ tickets, saveEnabled = true }: { tickets: Ret
   }
 
   return (
-    <section id="daily-tickets" aria-labelledby="suggested-tickets-heading" className="scroll-mt-6 space-y-3 rounded-xl border border-court-accent/30 bg-court-card p-4 sm:p-5">
+    <section id="daily-tickets" aria-labelledby="suggested-tickets-heading" className="scroll-mt-6 space-y-3 rounded-xl border border-[#ff7896]/60 bg-[#fff5f7] p-4 shadow-sm sm:p-5">
       <div>
-        <h3 id="suggested-tickets-heading" className="text-base font-semibold text-court-text">Bilhetes sugeridos</h3>
-        <p className="mt-1 text-xs leading-5 text-court-textMuted">Seleções filtradas por amostra, estabilidade de minutos, cotação e EV experimental positivo. Ainda não há validação histórica do modelo.</p>
+        <h3 id="suggested-tickets-heading" className="text-base font-semibold text-[#b3133b]">Bilhetes sugeridos</h3>
+        <p className="mt-1 text-xs leading-5 text-slate-600">Seleções filtradas por amostra, estabilidade de minutos, cotação e EV experimental positivo. Ainda não há validação histórica do modelo.</p>
       </div>
       {tickets.length ? (
         <div className="grid gap-3 lg:grid-cols-2">
           {tickets.map(ticket => (
-            <article key={ticket.id} className="rounded-lg border border-court-border bg-court-surface/50 p-4">
+            <article key={ticket.id} className="rounded-lg border border-[#ff7896]/40 bg-white p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <h4 className="font-medium text-court-text">{ticket.label}</h4>
                   <p className="mt-1 text-xs text-court-textMuted">Odd combinada: {ticket.combinedDecimalOdds.toFixed(2)} ({ticket.combinedAmericanOdds > 0 ? '+' : ''}{ticket.combinedAmericanOdds})</p>
                   <p className="mt-1 text-xs font-medium text-court-textMuted">Casa para todas as seleções: {ticket.bookmaker}</p>
                 </div>
-                <span className="rounded bg-court-warning/15 px-2 py-1 text-[11px] text-court-warning">Experimental</span>
+                <span className="rounded-full border border-amber-700/20 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800">Experimental</span>
               </div>
-              <div className="mt-3 divide-y divide-court-border">
+              <div className="mt-3 divide-y divide-[#ff7896]/25">
                 {ticket.selections.map(leg => <TicketSelection key={leg.id} leg={leg} />)}
               </div>
               <p className="mt-3 text-xs leading-5 text-court-textMuted">
@@ -86,7 +87,7 @@ export function SuggestedTickets({ tickets, saveEnabled = true }: { tickets: Ret
                   : `Chance estimada pelo modelo para a seleção: ${(ticket.estimatedProbability * 100).toFixed(1)}%.`}
               </p>
               {saveEnabled && (
-                <div className="mt-4 border-t border-court-border pt-3">
+                <div className="mt-4 border-t border-[#ff7896]/30 pt-3">
                   <label className="mb-3 block text-xs text-court-textMuted">
                     Valor apostado (R$)
                     <input type="number" min="0.01" max="1000000" step="0.01" inputMode="decimal" placeholder="Ex.: 10,00" value={stakes[ticket.id] || ''} onChange={event => setStakes(current => ({ ...current, [ticket.id]: event.target.value }))} className="input mt-1 py-2 text-sm" />
@@ -105,7 +106,7 @@ export function SuggestedTickets({ tickets, saveEnabled = true }: { tickets: Ret
           ))}
         </div>
       ) : (
-        <p className="rounded-lg border border-court-border p-4 text-sm text-court-textMuted">Nenhum palpite de hoje passou pelos filtros de qualidade com cotação disponível. Isso pode acontecer; não forçamos uma sugestão só para preencher a tela.</p>
+        <p className="rounded-lg border border-[#ff7896]/40 bg-white p-4 text-sm text-slate-600">Nenhum palpite de hoje passou pelos filtros de qualidade com cotação disponível. Isso pode acontecer; não forçamos uma sugestão só para preencher a tela.</p>
       )}
     </section>
   );
@@ -121,7 +122,12 @@ function TicketSelection({ leg }: { leg: BetSelection }) {
           <span className="font-medium text-court-text">{leg.player} · {marketLabel} {leg.side === 'Over' ? 'Mais de' : 'Menos de'} {leg.line}</span>
           <span className="font-mono text-court-text">{leg.quote.price > 0 ? '+' : ''}{leg.quote.price}</span>
         </div>
-        <p className="mt-1 text-xs text-court-textMuted">{leg.game} · {leg.quote.bookmaker} · chance individual {Math.round(leg.probability * 100)}% · amostra {leg.sampleSize} jogos</p>
+        <p className="mt-1 flex flex-wrap items-center gap-x-1 text-xs text-court-textMuted">
+          {leg.awayTeam && leg.homeTeam
+            ? <TeamMatchup away={leg.awayTeam} home={leg.homeTeam} />
+            : leg.game}
+          <span aria-hidden="true">·</span> {leg.quote.bookmaker} · chance individual {Math.round(leg.probability * 100)}% · amostra {leg.sampleSize} jogos
+        </p>
       </div>
     </div>
   );

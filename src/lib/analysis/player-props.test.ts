@@ -45,6 +45,9 @@ describe('analyzePlayerProp matchup validation', () => {
 
   it('uses only verified H2H logs against the opponent selected from player team', () => {
     const candidate = analyzePlayerProp(input(makeLogs('Boston Celtics')));
+    expect(candidate?.team).toBe('Boston Celtics');
+    expect(candidate?.homeTeam).toBe('Boston Celtics');
+    expect(candidate?.awayTeam).toBe('Miami Heat');
     expect(candidate?.opponent).toBe('Miami Heat');
     expect(candidate?.teamVerified).toBe(true);
     expect(candidate?.opponentAverage).toBe(30);

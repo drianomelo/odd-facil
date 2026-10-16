@@ -6,6 +6,9 @@ export type BetSelection = {
   game: string;
   commenceTime: string;
   player: string;
+  team?: string;
+  homeTeam?: string;
+  awayTeam?: string;
   market: PlayerPropCandidate['market'];
   line: number;
   side: 'Over' | 'Under';
@@ -68,6 +71,9 @@ function selection(candidate: PlayerPropCandidate, quote: PlayerPropQuote): BetS
     game: candidate.game,
     commenceTime: candidate.commenceTime,
     player: candidate.player,
+    team: candidate.team,
+    homeTeam: candidate.homeTeam,
+    awayTeam: candidate.awayTeam,
     market: candidate.market,
     line: candidate.line,
     side: candidate.recommendationSide || 'Over',

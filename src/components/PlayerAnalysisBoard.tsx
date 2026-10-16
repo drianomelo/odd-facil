@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { PlayerAnalysisCard } from '@/components/PlayerAnalysisCard';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
+import { TeamLogo, TeamMatchup } from '@/components/TeamLogo';
 import { PlayerPropCandidate, PlayerPropMarket, PlayerPropQuote } from '@/lib/analysis/player-props';
 
 const MARKET_LABELS: Record<PlayerPropMarket, string> = {
@@ -119,8 +120,8 @@ export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Gr
     <>
       <section aria-labelledby="custom-ticket-heading" className="space-y-3">
         <div>
-          <h3 id="custom-ticket-heading" className="text-base font-semibold text-court-text">Monte seu bilhete pelos palpites do radar</h3>
-          <p className="mt-1 text-xs leading-5 text-court-textMuted">Use o botão no fim de cada análise detalhada. Depois confira as seleções e a casa no carrinho antes de salvar.</p>
+          <h3 id="custom-ticket-heading" className="text-base font-semibold text-[#005A9C]">Monte seu bilhete pelos palpites do radar</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-600">Use o botão no fim de cada análise detalhada. Depois confira as seleções e a casa no carrinho antes de salvar.</p>
         </div>
         <div className="space-y-5">
           {groups.map(group => (
@@ -153,7 +154,7 @@ export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Gr
       </section>
 
       {saveEnabled && selected.length > 0 && (
-        <aside aria-label="Carrinho do meu bilhete" className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-xl overflow-hidden rounded-2xl border border-court-accent/50 bg-court-card shadow-2xl shadow-black/40 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[min(30rem,calc(100vw-3rem))]">
+        <aside aria-label="Carrinho do meu bilhete" className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-xl overflow-hidden rounded-2xl border border-[#58A9E3]/70 bg-white shadow-2xl shadow-[#005A9C]/20 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[min(30rem,calc(100vw-3rem))]">
           <div className="flex items-center justify-between border-b border-court-border px-4 py-3">
             <div>
               <h3 className="font-semibold text-court-text">Meu bilhete · {selected.length}/10</h3>
@@ -171,8 +172,8 @@ export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Gr
                       <div className="flex min-w-0 items-center gap-3">
                         <PlayerAvatar name={pick.player} size="sm" />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-court-text">{index + 1}. {pick.player} · {MARKET_LABELS[pick.market]} {pick.recommendationSide === 'Under' ? 'Menos de' : 'Mais de'} {pick.line}</p>
-                          <p className="mt-1 text-xs text-court-textMuted">{pick.game} · {quote ? `${quote.price > 0 ? '+' : ''}${quote.price}` : 'sem cotação nesta casa'}</p>
+                          <p className="flex items-center gap-1 text-sm font-medium text-court-text">{index + 1}. {pick.player}<TeamLogo team={pick.team} size="xs" /> · {MARKET_LABELS[pick.market]} {pick.recommendationSide === 'Under' ? 'Menos de' : 'Mais de'} {pick.line}</p>
+                          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-xs text-court-textMuted">{pick.awayTeam && pick.homeTeam ? <TeamMatchup away={pick.awayTeam} home={pick.homeTeam} /> : pick.game} · {quote ? `${quote.price > 0 ? '+' : ''}${quote.price}` : 'sem cotação nesta casa'}</p>
                         </div>
                       </div>
                       <button type="button" onClick={() => togglePick(pick)} className="shrink-0 text-xs font-medium text-court-danger hover:underline">Remover</button>

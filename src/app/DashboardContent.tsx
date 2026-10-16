@@ -81,6 +81,7 @@ function makeStaticPick(input: {
   last10: number;
   last20: number;
 }): PlayerPropCandidate {
+  const [awayTeam, homeTeam] = input.game.split(" @ ");
   const bookmaker = "DraftKings";
   const bookmakerKey = "draftkings";
   const quotes = (["Over", "Under"] as const).map((side) => ({
@@ -94,6 +95,9 @@ function makeStaticPick(input: {
 
   return {
     ...input,
+    team: awayTeam,
+    awayTeam,
+    homeTeam,
     commenceTime: STATIC_GAME_DAY,
     last5Average: input.last5,
     last10Average: input.last10,
@@ -498,24 +502,24 @@ export async function DashboardContent() {
           <div>
             <h3
               id="player-analysis-heading"
-              className="text-lg font-semibold text-court-text"
+              className="text-lg font-semibold text-[#005A9C]"
             >
               Radar de props de jogadores
             </h3>
-            <p className="mt-1 text-sm text-court-textMuted">
+            <p className="mt-1 text-sm text-slate-600">
               Projeções próprias a partir de logs e minutos. O radar organiza
               sinais para validação; ainda não são recomendações finais.
             </p>
           </div>
           {!data.player_analysis.configured ? (
-            <div className="card border-court-accent/30">
-              <h4 className="font-semibold text-court-text">
+            <div className="card border-[#58A9E3]/60 bg-[#EAF5FC]">
+              <h4 className="font-semibold text-[#005A9C]">
                 Fonte gratuita ainda não configurada
               </h4>
-              <p className="mt-2 text-sm text-court-textMuted">
+              <p className="mt-2 text-sm text-slate-600">
                 {data.player_analysis.message}
               </p>
-              <p className="mt-2 text-xs text-court-textMuted">
+              <p className="mt-2 text-xs text-slate-600">
                 Cadastre-se no plano gratuito da PropLine (sem cartão) e
                 adicione <code>PROPLINE_API_KEY</code> ao arquivo{" "}
                 <code>.env.local</code>. A chave fica somente no seu computador.
@@ -523,13 +527,13 @@ export async function DashboardContent() {
             </div>
           ) : data.player_analysis.recommendations.length ? (
             <>
-              <p className="text-xs text-court-warning">
+              <p className="text-xs text-amber-800">
                 O modelo ainda não passou por backtest. “Candidato para
                 validação” exige amostra maior, minutos estáveis e cotação
                 pareada; o EV continua experimental. Confira escalações e
                 desfalques.
               </p>
-              <p className="text-xs text-court-textMuted">
+              <p className="text-xs text-slate-600">
                 {STATIC_DASHBOARD_MODE
                   ? "Dados demonstrativos locais; previsões e resultados não são gravados."
                   : data.player_analysis.tracking?.enabled
@@ -556,7 +560,7 @@ export async function DashboardContent() {
                   }),
                 )}
               />
-              <p className="text-xs text-court-textMuted">
+              <p className="text-xs text-slate-600">
                 Acompanhamento: {data.player_performance.totalForecasts}{" "}
                 registradas · {data.player_performance.pending} pendentes ·{" "}
                 {data.player_performance.settled} apuradas
@@ -576,9 +580,9 @@ export async function DashboardContent() {
                 separada no histórico.
               </p>
               {data.player_performance.settled > 0 && (
-                <div className="overflow-x-auto rounded border border-court-border">
+                <div className="overflow-x-auto rounded-xl border border-[#58A9E3]/50 bg-white">
                   <table className="min-w-full text-left text-xs">
-                    <thead className="bg-court-surface text-court-textMuted">
+                    <thead className="bg-[#EAF5FC] text-slate-600">
                       <tr>
                         <th className="p-2">Mercado</th>
                         <th className="p-2">Apuradas</th>
@@ -594,7 +598,7 @@ export async function DashboardContent() {
                         .map((row) => (
                           <tr
                             key={row.market}
-                            className="border-t border-court-border"
+                            className="border-t border-[#58A9E3]/30"
                           >
                             <td className="p-2">
                               {propMarketLabel(row.market)}
@@ -626,7 +630,7 @@ export async function DashboardContent() {
               )}
             </>
           ) : (
-            <div className="card text-sm text-court-textMuted">
+            <div className="card border-[#58A9E3]/50 bg-[#EAF5FC] text-sm text-slate-600">
               {data.player_analysis.message ||
                 "Os dados disponíveis ainda não sustentam uma recomendação com amostra suficiente."}
             </div>
@@ -641,12 +645,12 @@ export async function DashboardContent() {
             <div className="flex items-center justify-between">
               <h3
                 id="opportunities-heading"
-                className="text-lg font-semibold text-court-text"
+                className="text-lg font-semibold text-[#005A9C]"
               >
                 Oportunidades do Dia ({qualifiedOps.length} qualificadas)
               </h3>
               {unqualifiedOps.length > 0 && (
-                <span className="badge badge-warning">
+                <span className="badge border border-amber-700/20 bg-amber-50 text-amber-800">
                   {unqualifiedOps.length} não qualificadas
                 </span>
               )}
@@ -661,9 +665,9 @@ export async function DashboardContent() {
             )}
 
             {qualifiedOps.length === 0 && (
-              <div className="card text-center py-8">
+              <div className="card border-[#58A9E3]/50 bg-[#F4FAFE] py-8 text-center">
                 <svg
-                  className="w-12 h-12 mx-auto text-court-textMuted mb-4"
+                  className="mx-auto mb-4 h-12 w-12 text-[#005A9C]/70"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -675,10 +679,10 @@ export async function DashboardContent() {
                     d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
                   />
                 </svg>
-                <h4 className="text-lg font-medium text-court-text mb-1">
+                <h4 className="mb-1 text-lg font-semibold text-[#005A9C]">
                   Nenhuma oportunidade qualificada hoje
                 </h4>
-                <p className="text-court-textMuted">
+                <p className="text-slate-600">
                   Os critérios atuais (EV ≥ 5%, completude ≥ 60%) não foram
                   atendidos. Aguarde mais dados ou consulte o radar experimental
                   de props dos jogadores.
@@ -688,7 +692,7 @@ export async function DashboardContent() {
 
             {unqualifiedOps.length > 0 && (
               <details className="group">
-                <summary className="cursor-pointer flex items-center justify-between p-4 card-hover">
+                <summary className="cursor-pointer flex items-center justify-between rounded-xl border border-[#58A9E3]/40 bg-white p-4 transition-colors hover:border-[#005A9C]/50 hover:bg-[#F4FAFE]">
                   <span className="font-medium text-court-text">
                     Ver oportunidades não qualificadas ({unqualifiedOps.length})
                   </span>
@@ -706,7 +710,7 @@ export async function DashboardContent() {
                     />
                   </svg>
                 </summary>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 p-4 border-t border-court-border">
+                <div className="grid gap-4 border-t border-[#58A9E3]/30 p-4 sm:grid-cols-2 lg:grid-cols-3">
                   {unqualifiedOps.map((opp) => (
                     <OpportunityCard key={opp.id} opportunity={opp} />
                   ))}
@@ -719,12 +723,12 @@ export async function DashboardContent() {
         <section aria-labelledby="games-heading" className="space-y-4">
           <h3
             id="games-heading"
-            className="text-lg font-semibold text-court-text"
+            className="text-lg font-semibold text-[#005A9C]"
           >
             Jogos nos Próximos 7 Dias ({scheduledGames.length} agendados
             {liveGames.length > 0 ? `, ${liveGames.length} ao vivo` : ""})
           </h3>
-          <p className="-mt-2 text-sm text-court-textMuted">
+          <p className="-mt-2 text-sm text-slate-600">
             Probabilidades de vencedor calculadas pela média das odds sem a
             margem das casas. São estimativas de mercado, não previsões
             estatísticas independentes.
@@ -740,7 +744,7 @@ export async function DashboardContent() {
 
           {liveGames.length > 0 && (
             <details>
-              <summary className="cursor-pointer flex items-center justify-between p-4 card-hover">
+              <summary className="cursor-pointer flex items-center justify-between rounded-xl border border-[#58A9E3]/40 bg-white p-4 transition-colors hover:border-[#005A9C]/50 hover:bg-[#F4FAFE]">
                 <span className="font-medium text-court-text">
                   Jogos ao vivo ({liveGames.length})
                 </span>
@@ -748,7 +752,7 @@ export async function DashboardContent() {
                   AO VIVO
                 </span>
               </summary>
-              <div className="space-y-2 p-4 border-t border-court-border">
+              <div className="space-y-2 border-t border-[#58A9E3]/30 p-4">
                 {liveGames.map((game) => (
                   <GameCard key={game.id} game={game} />
                 ))}
@@ -758,12 +762,12 @@ export async function DashboardContent() {
 
           {finishedGames.length > 0 && (
             <details>
-              <summary className="cursor-pointer flex items-center justify-between p-4 card-hover">
+              <summary className="cursor-pointer flex items-center justify-between rounded-xl border border-[#58A9E3]/40 bg-white p-4 transition-colors hover:border-[#005A9C]/50 hover:bg-[#F4FAFE]">
                 <span className="font-medium text-court-text">
                   Finalizados ({finishedGames.length})
                 </span>
               </summary>
-              <div className="space-y-2 p-4 border-t border-court-border">
+              <div className="space-y-2 border-t border-[#58A9E3]/30 p-4">
                 {finishedGames.map((game) => (
                   <GameCard key={game.id} game={game} />
                 ))}
@@ -774,9 +778,9 @@ export async function DashboardContent() {
           {scheduledGames.length === 0 &&
             liveGames.length === 0 &&
             finishedGames.length === 0 && (
-              <div className="card text-center py-8">
+              <div className="card border-[#58A9E3]/50 bg-[#F4FAFE] py-8 text-center">
                 <svg
-                  className="w-12 h-12 mx-auto text-court-textMuted mb-4"
+                  className="mx-auto mb-4 h-12 w-12 text-[#005A9C]/70"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -788,10 +792,10 @@ export async function DashboardContent() {
                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                   />
                 </svg>
-                <h4 className="text-lg font-medium text-court-text mb-1">
+                <h4 className="mb-1 text-lg font-semibold text-[#005A9C]">
                   Nenhum jogo agendado para hoje
                 </h4>
-                <p className="text-court-textMuted">
+                <p className="text-slate-600">
                   Ainda não há jogos ou odds publicados para os próximos dias.
                 </p>
               </div>

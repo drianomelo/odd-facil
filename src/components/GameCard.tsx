@@ -23,12 +23,12 @@ export function GameCard({ game }: GameCardProps) {
   }, {});
 
   return (
-    <article className="card card-hover relative">
+    <article className="card relative border-[#58A9E3]/50 bg-white shadow-sm transition-all hover:border-[#005A9C]/60 hover:shadow-md hover:shadow-[#005A9C]/10">
       {isLive && (
         <div className="absolute top-3 right-3 badge badge-danger animate-pulse">AO VIVO</div>
       )}
       {isFinished && (
-        <div className="absolute top-3 right-3 badge bg-court-border text-court-textMuted">FINALIZADO</div>
+        <div className="absolute top-3 right-3 badge border border-[#58A9E3]/40 bg-[#EAF5FC] text-[#005A9C]">FINALIZADO</div>
       )}
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -66,7 +66,7 @@ export function GameCard({ game }: GameCardProps) {
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-shrink-0">
-          <span className={`badge ${isLive ? 'bg-court-danger/20 text-court-danger' : 'bg-court-border text-court-textMuted'}`}>
+          <span className={`badge ${isLive ? 'border border-[#ed174b]/25 bg-[#ed174b]/10 text-[#b3133b]' : 'border border-[#58A9E3]/40 bg-[#EAF5FC] text-[#005A9C]'}`}>
             {StatusLabel[game.status] || game.status}
           </span>
           
@@ -117,7 +117,7 @@ function MarketOddsSummary({ market }: { market: MarketOdds }) {
   };
 
   return (
-    <div className="flex flex-col gap-0.5 rounded bg-court-bg/50 px-2 py-1 text-xs" title="Odd máxima e probabilidade média do mercado sem margem">
+    <div className="flex flex-col gap-0.5 rounded-md border border-[#58A9E3]/30 bg-[#F4FAFE] px-2 py-1 text-xs" title="Odd máxima e probabilidade média do mercado sem margem">
       {selections.map(([sel, odd]) => odd && (
         <OddsSelection key={sel} selection={sel as SelectionType} odd={odd} market={market} label={labels[sel] || sel} />
       ))}

@@ -1,7 +1,7 @@
 const nbaPlayerIds: Record<string, string> = {
   'stephen curry': '201939',
   'victor wembanyama': '1641705',
-  'shai gilgeous alexander': '1628983',
+  'shai gilgeous-alexander': '1628983',
   'anthony edwards': '1630162',
   'luka doncic': '1629029',
   'nikola jokic': '203999',
