@@ -64,7 +64,7 @@ interface DashboardData {
   };
 }
 
-const STATIC_DASHBOARD_MODE = process.env.DASHBOARD_DATA_SOURCE !== "api";
+const STATIC_DASHBOARD_MODE = process.env.DASHBOARD_DATA_SOURCE === "static";
 const STATIC_NOW = "2026-10-16T12:00:00-03:00";
 const STATIC_GAME_DAY = "2026-10-20T19:00:00-03:00";
 

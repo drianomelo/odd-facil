@@ -3,6 +3,7 @@
 import { formatAppDateTime, formatAppTime, formatRelativeTime } from '@/lib/utils/date';
 import { Game, MarketOdds, Odd, SelectionType } from '@/types';
 import { StatusLabel, FreshnessLabel, FreshnessColor } from '@/lib/utils/labels';
+import { TeamLogo } from '@/components/TeamLogo';
 
 interface GameCardProps {
   game: Game;
@@ -39,11 +40,13 @@ export function GameCard({ game }: GameCardProps) {
               <span className="w-px h-4 bg-court-border hidden sm:block" />
               <span className="font-mono font-medium">{gameTime}</span>
             </div>
-            <div className="flex items-center gap-3 mt-1">
+            <div className="flex items-center gap-2.5 mt-1">
+              <TeamLogo team={game.away_team.abbreviation} size="sm" />
               <span className={`font-semibold text-court-text ${isFinished ? 'text-court-textMuted' : ''}`}>
                 {game.away_team.abbreviation}
               </span>
               <span className="text-court-textMuted">@</span>
+              <TeamLogo team={game.home_team.abbreviation} size="sm" />
               <span className={`font-semibold text-court-text ${isFinished ? 'text-court-textMuted' : ''}`}>
                 {game.home_team.abbreviation}
               </span>
