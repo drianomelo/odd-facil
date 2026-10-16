@@ -64,6 +64,256 @@ interface DashboardData {
   };
 }
 
+const STATIC_DASHBOARD_MODE = process.env.DASHBOARD_DATA_SOURCE !== "api";
+const STATIC_NOW = "2026-10-16T12:00:00-03:00";
+const STATIC_GAME_DAY = "2026-10-20T19:00:00-03:00";
+
+function makeStaticPick(input: {
+  id: string;
+  gameId: string;
+  game: string;
+  player: string;
+  market: PlayerPropMarket;
+  line: number;
+  projection: number;
+  side: "Over" | "Under";
+  last5: number;
+  last10: number;
+  last20: number;
+}): PlayerPropCandidate {
+  const bookmaker = "DraftKings";
+  const bookmakerKey = "draftkings";
+  const quotes = (["Over", "Under"] as const).map((side) => ({
+    side,
+    price: -110,
+    bookmaker,
+    bookmakerKey,
+    updatedAt: STATIC_NOW,
+  }));
+  const isOver = input.side === "Over";
+
+  return {
+    ...input,
+    commenceTime: STATIC_GAME_DAY,
+    last5Average: input.last5,
+    last10Average: input.last10,
+    last20Average: input.last20,
+    probabilityOver: isOver ? 0.59 : 0.41,
+    probabilityUnder: isOver ? 0.41 : 0.59,
+    marketProbabilityOver: 0.5,
+    marketProbabilityUnder: 0.5,
+    bestOver: quotes[0],
+    bestUnder: quotes[1],
+    quotes,
+    edge: isOver ? 0.09 : -0.09,
+    expectedValue: isOver ? 0.127 : -0.127,
+    edgeUnder: isOver ? -0.09 : 0.09,
+    expectedValueUnder: isOver ? -0.127 : 0.127,
+    recommendationSide: input.side,
+    sampleSize: 20,
+    shortlistEligible: true,
+    averageMinutes: 34,
+    minutesTrend: 0.98,
+    opponentAverage: input.projection - (isOver ? 1 : -1),
+    opponent: input.game.split(" @ ")[0],
+    teamVerified: true,
+    confidence: "moderada",
+    reasons: [
+      "Exemplo estático para visualização da interface.",
+      "Cotação fictícia usada apenas como demonstração.",
+    ],
+    limitations: ["Dados de demonstração; não representam uma previsão atual."],
+  };
+}
+
+const STATIC_PICKS: PlayerPropCandidate[] = [
+  makeStaticPick({
+    id: "demo-shai-points",
+    gameId: "demo-game-1",
+    game: "Oklahoma City Thunder @ San Antonio Spurs",
+    player: "Shai Gilgeous-Alexander",
+    market: "player_points",
+    line: 26.5,
+    projection: 28.1,
+    side: "Over",
+    last5: 28.2,
+    last10: 27.4,
+    last20: 26.8,
+  }),
+  makeStaticPick({
+    id: "demo-booker-points",
+    gameId: "demo-game-2",
+    game: "Phoenix Suns @ Los Angeles Lakers",
+    player: "Devin Booker",
+    market: "player_points",
+    line: 26.5,
+    projection: 28.3,
+    side: "Over",
+    last5: 29.1,
+    last10: 27.7,
+    last20: 27.1,
+  }),
+  makeStaticPick({
+    id: "demo-wemby-rebounds",
+    gameId: "demo-game-3",
+    game: "San Antonio Spurs @ Oklahoma City Thunder",
+    player: "Victor Wembanyama",
+    market: "player_rebounds",
+    line: 10.5,
+    projection: 9.4,
+    side: "Under",
+    last5: 9.2,
+    last10: 9.8,
+    last20: 10.1,
+  }),
+  makeStaticPick({
+    id: "demo-tatum-rebounds",
+    gameId: "demo-game-4",
+    game: "Boston Celtics @ New York Knicks",
+    player: "Jayson Tatum",
+    market: "player_rebounds",
+    line: 7.5,
+    projection: 8.1,
+    side: "Over",
+    last5: 8.4,
+    last10: 7.9,
+    last20: 7.8,
+  }),
+  makeStaticPick({
+    id: "demo-haliburton-assists",
+    gameId: "demo-game-5",
+    game: "Indiana Pacers @ Milwaukee Bucks",
+    player: "Tyrese Haliburton",
+    market: "player_assists",
+    line: 8.5,
+    projection: 9.4,
+    side: "Over",
+    last5: 9.8,
+    last10: 9.2,
+    last20: 8.9,
+  }),
+  makeStaticPick({
+    id: "demo-morant-assists",
+    gameId: "demo-game-6",
+    game: "Memphis Grizzlies @ Dallas Mavericks",
+    player: "Ja Morant",
+    market: "player_assists",
+    line: 7.5,
+    projection: 8.2,
+    side: "Over",
+    last5: 8.4,
+    last10: 7.9,
+    last20: 7.7,
+  }),
+  makeStaticPick({
+    id: "demo-ant-threes",
+    gameId: "demo-game-7",
+    game: "Minnesota Timberwolves @ Denver Nuggets",
+    player: "Anthony Edwards",
+    market: "player_threes",
+    line: 2.5,
+    projection: 3.1,
+    side: "Over",
+    last5: 3.4,
+    last10: 3.0,
+    last20: 2.9,
+  }),
+  makeStaticPick({
+    id: "demo-curry-threes",
+    gameId: "demo-game-8",
+    game: "Golden State Warriors @ Los Angeles Clippers",
+    player: "Stephen Curry",
+    market: "player_threes",
+    line: 4.5,
+    projection: 5.0,
+    side: "Over",
+    last5: 5.2,
+    last10: 4.9,
+    last20: 4.8,
+  }),
+  makeStaticPick({
+    id: "demo-luka-pra",
+    gameId: "demo-game-9",
+    game: "Los Angeles Lakers @ Phoenix Suns",
+    player: "Luka Dončić",
+    market: "player_points_rebounds_assists",
+    line: 44.5,
+    projection: 46.2,
+    side: "Over",
+    last5: 47.0,
+    last10: 45.8,
+    last20: 45.2,
+  }),
+  makeStaticPick({
+    id: "demo-jokic-pra",
+    gameId: "demo-game-10",
+    game: "Denver Nuggets @ Minnesota Timberwolves",
+    player: "Nikola Jokić",
+    market: "player_points_rebounds_assists",
+    line: 52.5,
+    projection: 54.0,
+    side: "Over",
+    last5: 55.1,
+    last10: 53.8,
+    last20: 53.2,
+  }),
+];
+
+const STATIC_DASHBOARD_DATA: DashboardData = {
+  last_update: STATIC_NOW,
+  next_update: "2026-10-17T12:00:00-03:00",
+  games_today: [],
+  opportunities: [],
+  credit_usage: { used: 0, remaining: 0, limit: 0 },
+  sources_status: [
+    {
+      name: "The Odds API",
+      status: "unconfigured",
+      last_check: STATIC_NOW,
+      message: "Pausada no modo visual estático",
+    },
+    {
+      name: "Banco de Dados (Neon)",
+      status: "unconfigured",
+      last_check: STATIC_NOW,
+      message: "Pausado no modo visual estático",
+    },
+    {
+      name: "Props e estatísticas NBA (PropLine)",
+      status: "unconfigured",
+      last_check: STATIC_NOW,
+      message: "Pausada no modo visual estático",
+    },
+  ],
+  demo_mode: true,
+  player_analysis: {
+    configured: true,
+    source: "dados-estaticos",
+    fetchedAt: STATIC_NOW,
+    analyzedPlayers: 10,
+    recommendations: STATIC_PICKS,
+    message:
+      "Dados demonstrativos para ajustes visuais. Nenhuma API foi consultada.",
+  },
+  player_performance: {
+    modelVersion: "demo-estatico",
+    seasonPhase: "regular",
+    totalForecasts: 0,
+    pending: 0,
+    settled: 0,
+    wins: 0,
+    losses: 0,
+    pushes: 0,
+    voids: 0,
+    hitRate: null,
+    brierScore: null,
+    betsWithOdds: 0,
+    netUnits: 0,
+    roiPercent: null,
+    byMarket: [],
+  },
+};
+
 async function fetchDashboardData(): Promise<DashboardData> {
   const requestHeaders = headers();
   const host = requestHeaders.get("host");
@@ -152,7 +402,9 @@ async function fetchDashboardData(): Promise<DashboardData> {
 }
 
 export async function DashboardContent() {
-  const data = await fetchDashboardData();
+  const data = STATIC_DASHBOARD_MODE
+    ? STATIC_DASHBOARD_DATA
+    : await fetchDashboardData();
   const qualifiedOps = data.opportunities.filter((o) => o.qualified);
   const unqualifiedOps = data.opportunities.filter((o) => !o.qualified);
   const scheduledGames = data.games_today.filter(
@@ -197,27 +449,30 @@ export async function DashboardContent() {
       >
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[#ed174b]"
-          style={{ clipPath: "polygon(50% 0, 100% 0, 100% 100%, 62% 100%)" }}
+          className="pointer-events-none absolute inset-0 bg-[#ed174b] z-10"
+          style={{ clipPath: "polygon(45% 0%, 55% 90%, 100% 100%, 100% 0%)" }}
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-0 h-[90%] w-full bg-[#006BB6]"
-          style={{
-            clipPath: "polygon(0 0, 50% 0, 62% 100%, 0 100%)",
-          }}
+          className="pointer-events-none absolute left-0 top-0 h-full w-full bg-[#006BB6]"
+          style={{ clipPath: "polygon(0% 0%, 0% 100%, 100% 70%, 100% 0%)" }}
         />
         <div className="relative mx-auto grid min-h-[70svh] grid-cols-1 items-stretch lg:grid-cols-[minmax(270px,1fr)_minmax(260px,0.8fr)_minmax(280px,1fr)]">
-          <aside className="relative z-10 order-2 flex items-center px-6 py-7 sm:px-10 lg:order-1 lg:px-12 lg:py-12">
-            <SourceStatusCard
-              sources={data.sources_status}
-              creditUsage={data.credit_usage}
-            />
+          <aside className="relative z-10 order-3 flex items-center px-6 py-7 sm:px-10 lg:order-3 lg:px-12 lg:py-12">
+            <div className="w-full">
+              <SourceStatusCard
+                sources={data.sources_status}
+                creditUsage={data.credit_usage}
+                staticMode={STATIC_DASHBOARD_MODE}
+              />
+            </div>
           </aside>
+
           <div className="relative order-1 min-h-[50vh] lg:order-2 lg:min-h-0">
             <PlayerSpotlight />
           </div>
-          <div className="relative z-10 order-3 flex items-center px-6 py-7 sm:px-10 lg:px-12 lg:py-12">
+
+          <div className="relative z-10 order-2 flex items-center px-6 py-7 sm:px-10 lg:order-1 lg:px-12 lg:py-12">
             <StatsSummary
               opportunities={qualifiedOps.length}
               playerPicks={recommendationsByMarket.reduce(
@@ -229,6 +484,7 @@ export async function DashboardContent() {
               lastUpdate={data.last_update}
               nextUpdate={data.next_update}
               demoMode={data.demo_mode}
+              staticMode={STATIC_DASHBOARD_MODE}
             />
           </div>
         </div>
@@ -274,12 +530,18 @@ export async function DashboardContent() {
                 desfalques.
               </p>
               <p className="text-xs text-court-textMuted">
-                {data.player_analysis.tracking?.enabled
-                  ? `${data.player_analysis.tracking.saved} novas previsões foram registradas para comparar com os resultados.`
-                  : "O armazenamento do histórico está indisponível; confira DATABASE_URL e a migração do banco."}
+                {STATIC_DASHBOARD_MODE
+                  ? "Dados demonstrativos locais; previsões e resultados não são gravados."
+                  : data.player_analysis.tracking?.enabled
+                    ? `${data.player_analysis.tracking.saved} novas previsões foram registradas para comparar com os resultados.`
+                    : "O armazenamento do histórico está indisponível; confira DATABASE_URL e a migração do banco."}
               </p>
-              <SuggestedTickets tickets={suggestedTickets} />
+              <SuggestedTickets
+                tickets={suggestedTickets}
+                saveEnabled={!STATIC_DASHBOARD_MODE}
+              />
               <PlayerAnalysisBoard
+                saveEnabled={!STATIC_DASHBOARD_MODE}
                 groups={recommendationsByMarket.map(
                   ({ market, allPicks, picks }) => ({
                     market,
