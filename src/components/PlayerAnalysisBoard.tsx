@@ -37,7 +37,7 @@ function americanToDecimal(price: number) {
   return price > 0 ? 1 + price / 100 : 1 + 100 / Math.abs(price);
 }
 
-export function PlayerAnalysisBoard({ groups }: { groups: Group[] }) {
+export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Group[]; saveEnabled?: boolean }) {
   const candidates = groups.flatMap(group => group.picks);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bookmaker, setBookmaker] = useState('');
@@ -152,7 +152,7 @@ export function PlayerAnalysisBoard({ groups }: { groups: Group[] }) {
         </div>
       </section>
 
-      {selected.length > 0 && (
+      {saveEnabled && selected.length > 0 && (
         <aside aria-label="Carrinho do meu bilhete" className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-xl overflow-hidden rounded-2xl border border-court-accent/50 bg-court-card shadow-2xl shadow-black/40 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[min(30rem,calc(100vw-3rem))]">
           <div className="flex items-center justify-between border-b border-court-border px-4 py-3">
             <div>
