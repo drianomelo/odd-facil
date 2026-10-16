@@ -60,7 +60,7 @@ export function SuggestedTickets({ tickets, saveEnabled = true }: { tickets: Ret
   }
 
   return (
-    <section aria-labelledby="suggested-tickets-heading" className="space-y-3 rounded-xl border border-court-accent/30 bg-court-card p-4 sm:p-5">
+    <section id="daily-tickets" aria-labelledby="suggested-tickets-heading" className="scroll-mt-6 space-y-3 rounded-xl border border-court-accent/30 bg-court-card p-4 sm:p-5">
       <div>
         <h3 id="suggested-tickets-heading" className="text-base font-semibold text-court-text">Bilhetes sugeridos</h3>
         <p className="mt-1 text-xs leading-5 text-court-textMuted">Seleções filtradas por amostra, estabilidade de minutos, cotação e EV experimental positivo. Ainda não há validação histórica do modelo.</p>
