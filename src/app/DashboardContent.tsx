@@ -15,6 +15,7 @@ import { buildSuggestedTickets } from "@/lib/analysis/bet-builder";
 import { PlayerAnalysisBoard } from "@/components/PlayerAnalysisBoard";
 import { SuggestedTickets } from "@/components/SuggestedTickets";
 import { PlayerSpotlight } from "@/components/PlayerSpotlight";
+import { StatusNotice } from "@/components/StatusNotice";
 
 interface DashboardData {
   last_update: string;
@@ -444,6 +445,65 @@ export async function DashboardContent() {
   const suggestedTickets = buildSuggestedTickets(
     data.player_analysis.recommendations,
   );
+  const radarNotices = !data.player_analysis.configured
+    ? [
+        {
+          tone: "warning" as const,
+          title: "Fonte não configurada",
+          content: data.player_analysis.message,
+        },
+        {
+          tone: "info" as const,
+          title: "Como configurar",
+          content: (
+            <>
+              Cadastre-se no plano gratuito da PropLine (sem cartão) e
+              adicione <code className="rounded bg-white px-1">PROPLINE_API_KEY</code> ao arquivo{" "}
+              <code className="rounded bg-white px-1">.env.local</code>. A chave fica somente no seu computador.
+            </>
+          ),
+        },
+      ]
+    : data.player_analysis.recommendations.length
+      ? [
+          {
+            tone: "warning" as const,
+            title: "Análise experimental",
+            content: (
+              <>
+                O modelo ainda não passou por backtest. “Candidato para validação”
+                exige amostra maior, minutos estáveis e cotação pareada; o EV
+                continua experimental. Confira escalações e desfalques.
+              </>
+            ),
+          },
+          {
+            tone: STATIC_DASHBOARD_MODE
+              ? ("info" as const)
+              : data.player_analysis.tracking?.enabled
+                ? ("success" as const)
+                : ("warning" as const),
+            title: STATIC_DASHBOARD_MODE
+              ? "Modo demonstrativo"
+              : data.player_analysis.tracking?.enabled
+                ? "Histórico ativo"
+                : "Histórico indisponível",
+            content: STATIC_DASHBOARD_MODE
+              ? "Dados demonstrativos locais; previsões e resultados não são gravados."
+              : data.player_analysis.tracking?.enabled
+                ? `${data.player_analysis.tracking.saved} novas previsões foram registradas para comparar com os resultados.`
+                : "O armazenamento do histórico está indisponível; confira DATABASE_URL e a migração do banco.",
+          },
+        ]
+      : [
+          {
+            tone: "info" as const,
+            title: "Sem recomendações qualificadas",
+            content:
+              data.player_analysis.message ||
+              "Os dados disponíveis ainda não sustentam uma recomendação com amostra suficiente.",
+          },
+        ];
 
   return (
     <div className="animate-in">
@@ -461,7 +521,7 @@ export async function DashboardContent() {
           className="pointer-events-none absolute left-0 top-0 h-full w-full bg-[#006BB6]"
           style={{ clipPath: "polygon(0% 0%, 0% 100%, 100% 70%, 100% 0%)" }}
         />
-        <div className="relative mx-auto grid min-h-[70svh] grid-cols-1 items-stretch lg:grid-cols-[minmax(270px,1fr)_minmax(260px,0.8fr)_minmax(280px,1fr)]">
+        <div className="relative mx-auto grid min-h-[80svh] grid-cols-1 items-stretch lg:grid-cols-[minmax(270px,1fr)_minmax(260px,0.8fr)_minmax(280px,1fr)]">
           <aside className="relative z-10 order-3 flex items-center px-6 py-7 sm:px-10 lg:order-3 lg:px-12 lg:py-12">
             <div className="w-full">
               <SourceStatusCard
@@ -494,52 +554,33 @@ export async function DashboardContent() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 pt-20 pb-8 sm:px-6 lg:px-8">
         <section
           aria-labelledby="player-analysis-heading"
           className="space-y-4"
         >
-          <div>
-            <h3
-              id="player-analysis-heading"
-              className="text-lg font-semibold text-[#005A9C]"
-            >
-              Radar de props de jogadores
-            </h3>
-            <p className="mt-1 text-sm text-slate-600">
-              Projeções próprias a partir de logs e minutos. O radar organiza
-              sinais para validação; ainda não são recomendações finais.
-            </p>
-          </div>
-          {!data.player_analysis.configured ? (
-            <div className="card border-[#58A9E3]/60 bg-[#EAF5FC]">
-              <h4 className="font-semibold text-[#005A9C]">
-                Fonte gratuita ainda não configurada
-              </h4>
-              <p className="mt-2 text-sm text-slate-600">
-                {data.player_analysis.message}
-              </p>
-              <p className="mt-2 text-xs text-slate-600">
-                Cadastre-se no plano gratuito da PropLine (sem cartão) e
-                adicione <code>PROPLINE_API_KEY</code> ao arquivo{" "}
-                <code>.env.local</code>. A chave fica somente no seu computador.
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <div className="min-w-0">
+              <h3
+                id="player-analysis-heading"
+                className="text-[44px] font-bold text-black"
+              >
+                Radar de props de jogadores
+              </h3>
+              <p className="mt-2 w-3/4 text-black/50">
+                Projeções próprias a partir de logs e minutos. O radar organiza
+                sinais para validação; ainda não são recomendações finais.
               </p>
             </div>
+            <div className="shrink-0 pt-1">
+              <StatusNotice notices={radarNotices} />
+            </div>
+          </div>
+
+          {!data.player_analysis.configured ? (
+            null
           ) : data.player_analysis.recommendations.length ? (
             <>
-              <p className="text-xs text-amber-800">
-                O modelo ainda não passou por backtest. “Candidato para
-                validação” exige amostra maior, minutos estáveis e cotação
-                pareada; o EV continua experimental. Confira escalações e
-                desfalques.
-              </p>
-              <p className="text-xs text-slate-600">
-                {STATIC_DASHBOARD_MODE
-                  ? "Dados demonstrativos locais; previsões e resultados não são gravados."
-                  : data.player_analysis.tracking?.enabled
-                    ? `${data.player_analysis.tracking.saved} novas previsões foram registradas para comparar com os resultados.`
-                    : "O armazenamento do histórico está indisponível; confira DATABASE_URL e a migração do banco."}
-              </p>
               <SuggestedTickets
                 tickets={suggestedTickets}
                 saveEnabled={!STATIC_DASHBOARD_MODE}
@@ -630,10 +671,7 @@ export async function DashboardContent() {
               )}
             </>
           ) : (
-            <div className="card border-[#58A9E3]/50 bg-[#EAF5FC] text-sm text-slate-600">
-              {data.player_analysis.message ||
-                "Os dados disponíveis ainda não sustentam uma recomendação com amostra suficiente."}
-            </div>
+            null
           )}
         </section>
 
