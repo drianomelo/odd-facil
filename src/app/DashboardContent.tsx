@@ -1,7 +1,7 @@
-import { formatAppDate, isGameStarted } from "@/lib/utils/date";
+import { formatAppDate, getPlayerPropAnalysisWindow, isGameStarted } from "@/lib/utils/date";
 import { Opportunity, Game, SourceStatus } from "@/types";
 import { OpportunityCard } from "@/components/OpportunityCard";
-import { GameCard } from "@/components/GameCard";
+import { GameAgendaCarousel } from "@/components/GameAgendaCarousel";
 import { SourceStatusCard } from "@/components/SourceStatusCard";
 import { StatsSummary } from "@/components/StatsSummary";
 import { headers } from "next/headers";
@@ -21,6 +21,7 @@ interface DashboardData {
   last_update: string;
   next_update: string;
   games_today: Game[];
+  games_message?: string;
   opportunities: Opportunity[];
   credit_usage: { used: number; remaining: number; limit: number };
   sources_status: SourceStatus[];
@@ -328,6 +329,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
     (host.startsWith("localhost:") ? "http" : "https");
   const baseUrl = `${protocol}://${host}`;
   const today = formatAppDate(new Date(), "yyyy-MM-dd");
+  const playerPropWindow = getPlayerPropAnalysisWindow();
   const endDate = new Date(`${today}T00:00:00Z`);
   endDate.setUTCDate(endDate.getUTCDate() + 6);
   const through = endDate.toISOString().slice(0, 10);
@@ -337,7 +339,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
       fetch(`${baseUrl}/api/opportunities?date=${today}&qualified=true`, {
         next: { revalidate: 60 },
       }),
-      fetch(`${baseUrl}/api/games?from=${today}&to=${through}`, {
+      fetch(`${baseUrl}/api/games?from=${encodeURIComponent(playerPropWindow.from.toISOString())}&to=${encodeURIComponent(playerPropWindow.to.toISOString())}`, {
         cache: "no-store",
       }),
       fetch(`${baseUrl}/api/credits`, { next: { revalidate: 60 } }),
@@ -375,6 +377,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
     last_update: new Date().toISOString(),
     next_update: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     games_today: gamesData.games || [],
+    games_message: gamesData.message,
     opportunities: opportunitiesData.opportunities || [],
     credit_usage: creditsData || { used: 0, remaining: 500, limit: 400 },
     sources_status: [
@@ -410,13 +413,16 @@ export async function DashboardContent() {
   const data = STATIC_DASHBOARD_MODE
     ? STATIC_DASHBOARD_DATA
     : await fetchDashboardData();
+  const playerPropWindow = getPlayerPropAnalysisWindow();
+  const visibleRecommendations = data.player_analysis.recommendations.filter((pick) => {
+    const commence = Date.parse(pick.commenceTime);
+    return Number.isFinite(commence) && commence >= playerPropWindow.from.getTime() && commence <= playerPropWindow.to.getTime();
+  });
   const qualifiedOps = data.opportunities.filter((o) => o.qualified);
   const unqualifiedOps = data.opportunities.filter((o) => !o.qualified);
   const scheduledGames = data.games_today.filter(
     (g) => g.status === "scheduled" && !isGameStarted(g.commence_time),
   );
-  const liveGames = data.games_today.filter((g) => g.status === "live");
-  const finishedGames = data.games_today.filter((g) => g.status === "finished");
   const propMarkets: PlayerPropMarket[] = [
     "player_points",
     "player_rebounds",
@@ -430,7 +436,7 @@ export async function DashboardContent() {
       : (pick.expectedValue ?? -1);
   const recommendationsByMarket = propMarkets
     .map((market) => {
-      const allPicks = data.player_analysis.recommendations
+      const allPicks = visibleRecommendations
         .filter((pick) => pick.market === market)
         .sort(
           (a, b) =>
@@ -439,11 +445,18 @@ export async function DashboardContent() {
             Math.max(b.edge ?? -1, b.edgeUnder ?? -1) -
               Math.max(a.edge ?? -1, a.edgeUnder ?? -1),
         );
-      return { market, allPicks, picks: allPicks.slice(0, 2) };
+      const seenPlayers = new Set<string>();
+      const uniquePicks = allPicks.filter((pick) => {
+        const playerKey = pick.player.trim().toLocaleLowerCase();
+        if (seenPlayers.has(playerKey)) return false;
+        seenPlayers.add(playerKey);
+        return true;
+      });
+      return { market, allPicks, picks: uniquePicks.slice(0, 6) };
     })
     .filter((group) => group.allPicks.length > 0);
   const suggestedTickets = buildSuggestedTickets(
-    data.player_analysis.recommendations,
+    visibleRecommendations,
   );
   const radarNotices = !data.player_analysis.configured
     ? [
@@ -464,7 +477,7 @@ export async function DashboardContent() {
           ),
         },
       ]
-    : data.player_analysis.recommendations.length
+    : visibleRecommendations.length
       ? [
           {
             tone: "warning" as const,
@@ -501,7 +514,7 @@ export async function DashboardContent() {
             title: "Sem recomendações qualificadas",
             content:
               data.player_analysis.message ||
-              "Os dados disponíveis ainda não sustentam uma recomendação com amostra suficiente.",
+              "Ainda não há palpites com dados suficientes para os jogos deste período. A análise usa os dados disponíveis, mas só exibe jogos de hoje, amanhã e até 6h da manhã seguinte.",
           },
         ];
 
@@ -555,6 +568,8 @@ export async function DashboardContent() {
       </section>
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 pt-20 pb-8 sm:px-6 lg:px-8">
+        <GameAgendaCarousel games={scheduledGames} message={data.games_message} />
+
         <section
           aria-labelledby="player-analysis-heading"
           className="space-y-4"
@@ -579,7 +594,7 @@ export async function DashboardContent() {
 
           {!data.player_analysis.configured ? (
             null
-          ) : data.player_analysis.recommendations.length ? (
+          ) : visibleRecommendations.length ? (
             <>
               <SuggestedTickets
                 tickets={suggestedTickets}
@@ -758,87 +773,6 @@ export async function DashboardContent() {
           </section>
         )}
 
-        <section aria-labelledby="games-heading" className="space-y-4">
-          <h3
-            id="games-heading"
-            className="text-lg font-semibold text-[#005A9C]"
-          >
-            Jogos nos Próximos 7 Dias ({scheduledGames.length} agendados
-            {liveGames.length > 0 ? `, ${liveGames.length} ao vivo` : ""})
-          </h3>
-          <p className="-mt-2 text-sm text-slate-600">
-            Probabilidades de vencedor calculadas pela média das odds sem a
-            margem das casas. São estimativas de mercado, não previsões
-            estatísticas independentes.
-          </p>
-
-          {scheduledGames.length > 0 && (
-            <div className="space-y-2">
-              {scheduledGames.map((game) => (
-                <GameCard key={game.id} game={game} />
-              ))}
-            </div>
-          )}
-
-          {liveGames.length > 0 && (
-            <details>
-              <summary className="cursor-pointer flex items-center justify-between rounded-xl border border-[#58A9E3]/40 bg-white p-4 transition-colors hover:border-[#005A9C]/50 hover:bg-[#F4FAFE]">
-                <span className="font-medium text-court-text">
-                  Jogos ao vivo ({liveGames.length})
-                </span>
-                <span className="badge badge-danger animate-pulse">
-                  AO VIVO
-                </span>
-              </summary>
-              <div className="space-y-2 border-t border-[#58A9E3]/30 p-4">
-                {liveGames.map((game) => (
-                  <GameCard key={game.id} game={game} />
-                ))}
-              </div>
-            </details>
-          )}
-
-          {finishedGames.length > 0 && (
-            <details>
-              <summary className="cursor-pointer flex items-center justify-between rounded-xl border border-[#58A9E3]/40 bg-white p-4 transition-colors hover:border-[#005A9C]/50 hover:bg-[#F4FAFE]">
-                <span className="font-medium text-court-text">
-                  Finalizados ({finishedGames.length})
-                </span>
-              </summary>
-              <div className="space-y-2 border-t border-[#58A9E3]/30 p-4">
-                {finishedGames.map((game) => (
-                  <GameCard key={game.id} game={game} />
-                ))}
-              </div>
-            </details>
-          )}
-
-          {scheduledGames.length === 0 &&
-            liveGames.length === 0 &&
-            finishedGames.length === 0 && (
-              <div className="card border-[#58A9E3]/50 bg-[#F4FAFE] py-8 text-center">
-                <svg
-                  className="mx-auto mb-4 h-12 w-12 text-[#005A9C]/70"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-                <h4 className="mb-1 text-lg font-semibold text-[#005A9C]">
-                  Nenhum jogo agendado para hoje
-                </h4>
-                <p className="text-slate-600">
-                  Ainda não há jogos ou odds publicados para os próximos dias.
-                </p>
-              </div>
-            )}
-        </section>
       </div>
     </div>
   );

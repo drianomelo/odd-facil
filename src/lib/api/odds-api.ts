@@ -131,6 +131,35 @@ export class OddsApiClient {
     return { games, creditsUsed: this.creditsUsed, creditsRemaining: this.creditsRemaining };
   }
 
+  async getNbaSchedule(from: Date, to: Date): Promise<Game[]> {
+    if (!this.apiKey) throw new Error('ODDS_API_KEY not configured');
+
+    // Round the start down to the hour so the five-minute response cache can be reused.
+    const cachedFrom = new Date(from);
+    cachedFrom.setUTCMinutes(0, 0, 0);
+    const eventParams = new URLSearchParams({
+      apiKey: this.apiKey,
+      dateFormat: 'iso',
+      commenceTimeFrom: formatOddsApiTime(cachedFrom),
+      commenceTimeTo: formatOddsApiTime(to),
+    });
+    const response = await fetch(`${this.baseUrl}/sports/basketball_nba/events?${eventParams}`, {
+      headers: { Accept: 'application/json' },
+      next: { revalidate: 300 },
+    });
+    if (!response.ok) {
+      throw new Error(`Odds API schedule error: ${response.status} - ${await response.text()}`);
+    }
+
+    const events = z.array(OddsApiEvent).parse(await response.json());
+    return events
+      .filter(event => {
+        const commence = Date.parse(event.commence_time);
+        return commence >= from.getTime() && commence <= to.getTime();
+      })
+      .map(event => this.transformGame({ ...event, bookmakers: [] } as OddsApiGame));
+  }
+
   private transformGame(apiGame: OddsApiGame): Game {
     const homeTeamInfo = NBA_TEAMS[apiGame.home_team] || { name: apiGame.home_team, abbr: apiGame.home_team.slice(0,3).toUpperCase() };
     const awayTeamInfo = NBA_TEAMS[apiGame.away_team] || { name: apiGame.away_team, abbr: apiGame.away_team.slice(0,3).toUpperCase() };
