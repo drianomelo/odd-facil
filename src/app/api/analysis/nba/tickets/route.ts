@@ -59,9 +59,6 @@ export async function POST(request: NextRequest) {
     if (input.kind !== 'custom' && new Set(input.legs.map(leg => leg.player.toLowerCase())).size !== input.legs.length) {
       return NextResponse.json({ error: 'Cada bilhete precisa ter jogadores diferentes.' }, { status: 400 });
     }
-    if (input.kind === 'double' && (input.legs[0].eventId === input.legs[1].eventId)) {
-      return NextResponse.json({ error: 'A múltipla com 2 seleções precisa usar partidas diferentes.' }, { status: 400 });
-    }
     const forecasts = await db.select().from(playerPropForecasts).where(and(
       eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION),
       inArray(playerPropForecasts.event_id, Array.from(new Set(input.legs.map(leg => leg.eventId)))),
@@ -89,18 +86,15 @@ export async function POST(request: NextRequest) {
     }
 
     const complete = matched as NonNullable<(typeof matched)[number]>[];
-    const hasSameGameLegs = new Set(input.legs.map(leg => leg.eventId)).size !== input.legs.length;
-    const combinedDecimalOdds = hasSameGameLegs ? null : complete.reduce((total, { quote }) => {
+    const combinedDecimalOdds = complete.reduce((total, { quote }) => {
       const price = Number(quote.price);
       return total * (price > 0 ? 1 + price / 100 : 1 + 100 / -price);
     }, 1);
-    const combinedAmericanOdds = combinedDecimalOdds === null
-      ? null
-      : complete.length === 1
-        ? Number(complete[0].quote.price)
-        : combinedDecimalOdds >= 2
-          ? Math.round((combinedDecimalOdds - 1) * 100)
-          : -Math.round(100 / (combinedDecimalOdds - 1));
+    const combinedAmericanOdds = complete.length === 1
+      ? Number(complete[0].quote.price)
+      : combinedDecimalOdds >= 2
+        ? Math.round((combinedDecimalOdds - 1) * 100)
+        : -Math.round(100 / (combinedDecimalOdds - 1));
     const availableBooks = new Map(complete.map(({ quote }) => [
       normalizedBook(String(quote.bookmakerKey || quote.bookmaker || '')),
       String(quote.bookmaker || 'Casa não identificada'),
@@ -118,7 +112,7 @@ export async function POST(request: NextRequest) {
         stake_amount: input.stakeAmount.toFixed(2),
         potential_return: input.potentialReturn !== undefined
           ? input.potentialReturn.toFixed(2)
-          : combinedDecimalOdds === null ? null : (input.stakeAmount * combinedDecimalOdds).toFixed(2),
+          : (input.stakeAmount * combinedDecimalOdds).toFixed(2),
       }).returning({ id: playerPropTickets.id, createdAt: playerPropTickets.created_at });
       await tx.insert(playerPropTicketLegs).values(complete.map(({ leg, forecast, quote }, index) => ({
         ticket_id: ticket.id,
