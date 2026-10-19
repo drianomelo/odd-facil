@@ -42,10 +42,6 @@ const stakeUpdateSchema = z.object({
 
 const deleteSchema = z.object({ id: z.string().uuid() });
 
-function bookIdentity(key: string | undefined, title: string): string {
-  return normalizedBook(key || title);
-}
-
 function getDetails(value: unknown): Record<string, unknown> {
   if (typeof value === 'string') {
     try { value = JSON.parse(value); } catch { return {}; }
@@ -66,12 +62,6 @@ export async function POST(request: NextRequest) {
     if (input.kind === 'double' && (input.legs[0].eventId === input.legs[1].eventId)) {
       return NextResponse.json({ error: 'A múltipla com 2 seleções precisa usar partidas diferentes.' }, { status: 400 });
     }
-    if (normalizedBook(input.bookmaker) !== normalizedBook(input.legs[0].bookmaker)
-      || input.legs.some(leg => bookIdentity(leg.bookmakerKey, leg.bookmaker)
-        !== bookIdentity(input.legs[0].bookmakerKey, input.legs[0].bookmaker))) {
-      return NextResponse.json({ error: 'Todas as pernas precisam usar a mesma casa.' }, { status: 400 });
-    }
-
     const forecasts = await db.select().from(playerPropForecasts).where(and(
       eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION),
       inArray(playerPropForecasts.event_id, Array.from(new Set(input.legs.map(leg => leg.eventId)))),
@@ -111,11 +101,18 @@ export async function POST(request: NextRequest) {
         : combinedDecimalOdds >= 2
           ? Math.round((combinedDecimalOdds - 1) * 100)
           : -Math.round(100 / (combinedDecimalOdds - 1));
+    const availableBooks = new Map(complete.map(({ quote }) => [
+      normalizedBook(String(quote.bookmakerKey || quote.bookmaker || '')),
+      String(quote.bookmaker || 'Casa não identificada'),
+    ]));
+    const bookmakerSummary = availableBooks.size === 1
+      ? Array.from(availableBooks.values())[0]
+      : 'Casas variadas';
     const created = await db.transaction(async (tx) => {
       const [ticket] = await tx.insert(playerPropTickets).values({
         kind: input.kind,
         label: input.label,
-        bookmaker: input.bookmaker,
+        bookmaker: bookmakerSummary,
         combined_decimal_odds: combinedDecimalOdds?.toFixed(4) ?? null,
         combined_american_odds: combinedAmericanOdds,
         stake_amount: input.stakeAmount.toFixed(2),
@@ -133,8 +130,8 @@ export async function POST(request: NextRequest) {
         line: String(forecast.line),
         selection: leg.side,
         american_odds: Number(quote.price),
-        bookmaker: leg.bookmaker,
-        bookmaker_key: leg.bookmakerKey || null,
+        bookmaker: String(quote.bookmaker || leg.bookmaker),
+        bookmaker_key: quote.bookmakerKey ? String(quote.bookmakerKey) : leg.bookmakerKey || null,
       })));
       return ticket;
     });

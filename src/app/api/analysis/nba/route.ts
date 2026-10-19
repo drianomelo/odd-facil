@@ -3,7 +3,7 @@ import { getDailyPlayerAnalysis } from '@/lib/api/propline';
 import { storeUpcomingPlayerPropForecasts } from '@/lib/analysis/player-prop-storage';
 import { fromAppTimeZone, getPlayerPropAnalysisWindow } from '@/lib/utils/date';
 
-export const revalidate = 900;
+export const revalidate = 600;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
