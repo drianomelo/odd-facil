@@ -38,7 +38,7 @@ function candidate(overrides: Partial<PlayerPropCandidate> = {}): PlayerPropCand
 }
 
 describe('buildSuggestedTickets', () => {
-  it('builds disjoint single and two-game tickets without inventing joint probability', () => {
+  it('builds disjoint single and double tickets without inventing joint probability', () => {
     const second = candidate({
       id: 'event-2:Player B:player_rebounds:8.5',
       gameId: 'event-2',
@@ -82,9 +82,21 @@ describe('buildSuggestedTickets', () => {
     expect(tickets).toEqual([]);
   });
 
-  it('requires a different game and player for the two-selection ticket', () => {
+  it('ranks the strongest market edge ahead of a larger EV or a larger payout', () => {
+    const strongestEdge = candidate({ id: 'edge-pick', player: 'Edge Pick', gameId: 'edge-game', edge: 0.18, expectedValue: 0.12 });
+    const highEv = candidate({ id: 'ev-pick', player: 'EV Pick', gameId: 'ev-game', edge: 0.05, expectedValue: 0.4 });
+    const steady = candidate({ id: 'steady-pick', player: 'Steady Pick', gameId: 'steady-game', edge: 0.1, expectedValue: 0.15 });
+    const tickets = buildSuggestedTickets([highEv, steady, strongestEdge]);
+    expect(tickets[0].selections[0].id).toBe('edge-pick');
+    expect(tickets[1].selections.map(leg => leg.id)).toEqual(['steady-pick', 'ev-pick']);
+  });
+
+  it('allows two different players from the same game in a multiple', () => {
     const sameGame = candidate({ id: 'same-game-player-b', player: 'Player B', gameId: 'event-1' });
-    expect(buildSuggestedTickets([candidate(), sameGame])).toHaveLength(1);
+    const sameGameThird = candidate({ id: 'same-game-player-c', player: 'Player C', gameId: 'event-1', bestOver: { side: 'Over', price: 130, bookmaker: 'Book B', updatedAt: '2026-10-20T12:00:00Z' }, quotes: [{ side: 'Over', price: 130, bookmaker: 'Book B', updatedAt: '2026-10-20T12:00:00Z' }] });
+    const tickets = buildSuggestedTickets([candidate(), sameGame, sameGameThird]);
+    expect(tickets.map(ticket => ticket.id)).toEqual(['single', 'double']);
+    expect(tickets[1].selections.every(leg => leg.gameId === 'event-1')).toBe(true);
   });
 
   it('builds a multiple from the best quote at each sportsbook even when no book is shared', () => {
@@ -105,7 +117,7 @@ describe('buildSuggestedTickets', () => {
   it('adds an exaggerated six-pick ticket only when six different players qualify', () => {
     const six = Array.from({ length: 9 }, (_, index) => candidate({
       id: `event-${index + 1}:Player ${index + 1}`,
-      gameId: `event-${index + 1}`,
+      gameId: 'same-event',
       player: `Player ${index + 1}`,
       expectedValue: 0.2 - index * 0.01,
     }));
@@ -114,6 +126,7 @@ describe('buildSuggestedTickets', () => {
     expect(exaggerated?.selections).toHaveLength(6);
     expect(exaggerated?.estimatedProbability).toBeNull();
     expect(exaggerated?.warning?.toLowerCase()).toContain('alto risco');
+    expect(new Set(exaggerated?.selections.map(leg => leg.gameId)).size).toBe(1);
     const ticketSelectionIds = tickets.flatMap(ticket => ticket.selections.map(leg => leg.id));
     expect(new Set(ticketSelectionIds).size).toBe(ticketSelectionIds.length);
   });

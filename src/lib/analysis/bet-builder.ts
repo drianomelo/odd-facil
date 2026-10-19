@@ -55,6 +55,19 @@ function getExpectedValue(candidate: PlayerPropCandidate): number | undefined {
   return candidate.recommendationSide === 'Under' ? candidate.expectedValueUnder : candidate.expectedValue;
 }
 
+function getEdge(candidate: PlayerPropCandidate): number | undefined {
+  return candidate.recommendationSide === 'Under' ? candidate.edgeUnder : candidate.edge;
+}
+
+function compareEntries(a: EligibleEntry, b: EligibleEntry): number {
+  const edgeA = getEdge(a.candidate) ?? -Infinity;
+  const edgeB = getEdge(b.candidate) ?? -Infinity;
+  return edgeB - edgeA
+    || b.expectedValue - a.expectedValue
+    || getProbability(b.candidate) - getProbability(a.candidate)
+    || b.candidate.sampleSize - a.candidate.sampleSize;
+}
+
 function selectionKey(candidate: PlayerPropCandidate): string {
   return [
     candidate.gameId,
@@ -128,7 +141,9 @@ export function buildSuggestedTickets(candidates: PlayerPropCandidate[]): Sugges
     .filter((entry): entry is EligibleEntry => entry.candidate.shortlistEligible
       && entry.quote !== undefined && entry.expectedValue !== undefined && Number.isFinite(entry.expectedValue)
       && entry.expectedValue > 0 && Number.isFinite(entry.quote.price) && entry.quote.price !== 0)
-    .sort((a, b) => b.expectedValue - a.expectedValue || b.candidate.sampleSize - a.candidate.sampleSize);
+    // Rank the strength of the signal first; odds affect the quote we attach,
+    // not which prediction is considered the best one.
+    .sort(compareEntries);
 
   const tickets: SuggestedTicket[] = [];
   const usedSelections = new Set<string>();
@@ -139,34 +154,30 @@ export function buildSuggestedTickets(candidates: PlayerPropCandidate[]): Sugges
     usedSelections.add(selectionKey(top.candidate));
   }
 
-  let bestPair: { entries: EligibleEntry[]; quotes: PlayerPropQuote[]; decimal: number } | null = null;
   const pairPool = eligible.filter(entry => !usedSelections.has(selectionKey(entry.candidate))).slice(0, 80);
-  for (let i = 0; i < pairPool.length; i += 1) {
-    for (let j = i + 1; j < pairPool.length; j += 1) {
-      const pair = [pairPool[i], pairPool[j]];
-      if (pair[0].candidate.gameId === pair[1].candidate.gameId || pair[0].candidate.player === pair[1].candidate.player) continue;
-      const quotes = pair.map(bestAvailableQuote);
-      const decimal = quotes.reduce((total, quote) => total * toDecimalOdds(quote.price), 1);
-      if (!bestPair || decimal > bestPair.decimal) bestPair = { entries: pair, quotes, decimal };
-    }
-  }
+  const pair = pairPool.length
+    ? [pairPool[0], pairPool.find(entry => entry.candidate.player.toLowerCase() !== pairPool[0].candidate.player.toLowerCase())]
+        .filter((entry): entry is EligibleEntry => !!entry)
+    : [];
+  const pairQuotes = pair.map(bestAvailableQuote);
+  const pairDecimal = pairQuotes.reduce((total, quote) => total * toDecimalOdds(quote.price), 1);
+  const bestPair = pair.length === 2 ? { entries: pair, quotes: pairQuotes, decimal: pairDecimal } : null;
   if (bestPair) {
     tickets.push(makeTicket('double', 'Múltipla com 2 seleções', bestPair.entries, bestPair.quotes,
       bestPair.decimal, null,
-      'Chance conjunta não estimada; seleções podem ser correlacionadas. A odd combina as melhores cotações encontradas, que podem ser de casas diferentes.'));
+      'Selecionada pela força dos palpites, não pela maior odd. A chance conjunta não é estimada porque as seleções podem ser correlacionadas; a odd combina preços individuais e pode diferir da cotação da múltipla na casa.'));
     bestPair.entries.forEach(entry => usedSelections.add(selectionKey(entry.candidate)));
   }
 
   const unique = eligible.filter(item => !usedSelections.has(selectionKey(item.candidate)))
     .filter((entry, index, all) => all.findIndex(other =>
-      other.candidate.player.toLowerCase() === entry.candidate.player.toLowerCase()
-        || other.candidate.gameId === entry.candidate.gameId,
+      other.candidate.player.toLowerCase() === entry.candidate.player.toLowerCase(),
     ) === index).slice(0, 6);
   if (unique.length === 6) {
     const quotes = unique.map(bestAvailableQuote);
     const decimal = quotes.reduce((total, quote) => total * toDecimalOdds(quote.price), 1);
     tickets.push(makeTicket('exaggerated', 'Exagerada · 6 palpites', unique, quotes, decimal, null,
-      'Alto risco. Chance conjunta não estimada; seleções podem ser correlacionadas. A odd combina as melhores cotações encontradas, que podem ser de casas diferentes.'));
+      'Alto risco. São os seis palpites mais bem ranqueados que sobraram. Chance conjunta não estimada; a odd combina as melhores cotações individuais e pode diferir da cotação da múltipla na casa.'));
   }
 
   return tickets;
