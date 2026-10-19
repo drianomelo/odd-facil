@@ -63,7 +63,7 @@ export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Gr
   const selectedQuotes = useMemo(() => selected.map(bestQuote), [selected]);
   const availableQuotes = selectedQuotes.filter((quote): quote is PlayerPropQuote => !!quote);
   const hasAllQuotes = availableQuotes.length === selectedQuotes.length;
-  const combinedDecimalOdds = sameGame || !hasAllQuotes ? null : availableQuotes.reduce((product, quote) => product * americanToDecimal(quote.price), 1);
+  const combinedDecimalOdds = !hasAllQuotes ? null : availableQuotes.reduce((product, quote) => product * americanToDecimal(quote.price), 1);
   const selectedBookmaker = bookmakerSummary(selectedQuotes);
 
   function togglePick(pick: PlayerPropCandidate) {
@@ -181,11 +181,9 @@ export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Gr
                 })}
               </ol>
 
-              {sameGame
-                ? <p className="text-xs leading-5 text-court-warning">Há seleções da mesma partida. A odd combinada não é estimada porque a correlação pode alterar o preço final. As melhores cotações individuais são de {selectedBookmaker.toLowerCase()}.</p>
-                : !hasAllQuotes
+              {!hasAllQuotes
                   ? <p className="text-xs leading-5 text-court-warning">Uma ou mais seleções estão sem cotação atual; atualize a análise antes de salvar o bilhete.</p>
-                  : <p className="text-xs leading-5 text-court-textMuted">Odd combinada estimada pelas melhores odds individuais: <span className="font-mono font-semibold text-court-text">{combinedDecimalOdds?.toFixed(2)}</span> · {selectedBookmaker}. Para apostar como múltipla em uma única casa, confira se ela oferece essas cotações.</p>}
+                  : <p className={`text-xs leading-5 ${sameGame ? 'text-court-warning' : 'text-court-textMuted'}`}>Odd combinada estimada pelas melhores odds individuais: <span className="font-mono font-semibold text-court-text">{combinedDecimalOdds?.toFixed(2)}</span> · {selectedBookmaker}.{sameGame ? ' Como há seleções da mesma partida, a correlação pode mudar a cotação que a casa oferece.' : ' Para apostar como múltipla em uma única casa, confira se ela oferece essas cotações.'}</p>}
               <label className="block text-xs text-court-textMuted">
                 Valor apostado (R$)
                 <input type="number" min="0.01" max="1000000" step="0.01" inputMode="decimal" value={stakeAmount} onChange={event => setStakeAmount(event.target.value)} placeholder="Ex.: 10,00" className="mt-1 w-full rounded-lg border border-court-border bg-court-surface px-3 py-2 text-sm text-court-text" />

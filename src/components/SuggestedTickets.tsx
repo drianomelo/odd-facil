@@ -70,7 +70,7 @@ export function SuggestedTickets({ tickets, saveEnabled = true }: { tickets: Ret
           </span>
           <div className="min-w-0">
             <h3 id="suggested-tickets-heading" className="text-base font-bold text-[#005a9c]">Bilhetes sugeridos</h3>
-            <p className="mt-0.5 text-xs leading-5 text-slate-600">Cada palpite usa sua melhor odd disponível, mesmo quando as casas são diferentes. A combinação é uma referência; confira onde consegue registrar cada seleção.</p>
+            <p className="mt-0.5 text-xs leading-5 text-slate-600">A ordem prioriza vantagem estimada sobre o mercado, EV positivo e amostra. Depois, cada palpite recebe sua melhor odd disponível, mesmo que as casas sejam diferentes.</p>
           </div>
         </div>
         <span className="rounded-full border border-[#005a9c]/25 bg-white px-3 py-1 text-[11px] font-semibold text-[#005a9c]">
