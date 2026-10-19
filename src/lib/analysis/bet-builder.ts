@@ -55,6 +55,16 @@ function getExpectedValue(candidate: PlayerPropCandidate): number | undefined {
   return candidate.recommendationSide === 'Under' ? candidate.expectedValueUnder : candidate.expectedValue;
 }
 
+function selectionKey(candidate: PlayerPropCandidate): string {
+  return [
+    candidate.gameId,
+    candidate.player.trim().toLowerCase(),
+    candidate.market,
+    candidate.line,
+    candidate.recommendationSide || 'Over',
+  ].join(':');
+}
+
 function toDecimalOdds(americanOdds: number): number {
   return americanOdds > 0 ? 1 + americanOdds / 100 : 1 + 100 / Math.abs(americanOdds);
 }
@@ -132,15 +142,17 @@ export function buildSuggestedTickets(candidates: PlayerPropCandidate[]): Sugges
     .sort((a, b) => b.expectedValue - a.expectedValue || b.candidate.sampleSize - a.candidate.sampleSize);
 
   const tickets: SuggestedTicket[] = [];
+  const usedSelections = new Set<string>();
   const top = eligible[0];
   if (top) {
     const quote = quotesFor(top).reduce<PlayerPropQuote | undefined>((best, current) =>
       !best || toDecimalOdds(current.price) > toDecimalOdds(best.price) ? current : best, undefined) || top.quote;
     tickets.push(makeTicket('single', 'Simples', [top], [quote], toDecimalOdds(quote.price), getProbability(top.candidate)));
+    usedSelections.add(selectionKey(top.candidate));
   }
 
   let bestPair: { entries: EligibleEntry[]; shared: NonNullable<ReturnType<typeof bestSharedBook>> } | null = null;
-  const pairPool = eligible.slice(0, 80);
+  const pairPool = eligible.filter(entry => !usedSelections.has(selectionKey(entry.candidate))).slice(0, 80);
   for (let i = 0; i < pairPool.length; i += 1) {
     for (let j = i + 1; j < pairPool.length; j += 1) {
       const pair = [pairPool[i], pairPool[j]];
@@ -149,12 +161,15 @@ export function buildSuggestedTickets(candidates: PlayerPropCandidate[]): Sugges
       if (shared && (!bestPair || shared.decimal > bestPair.shared.decimal)) bestPair = { entries: pair, shared };
     }
   }
-  if (bestPair) tickets.push(makeTicket('double', 'Múltipla com 2 seleções', bestPair.entries, bestPair.shared.quotes,
-    bestPair.shared.decimal, null,
-    'A chance conjunta não é estimada: as seleções podem ser correlacionadas. As duas cotações são da mesma casa.'));
+  if (bestPair) {
+    tickets.push(makeTicket('double', 'Múltipla com 2 seleções', bestPair.entries, bestPair.shared.quotes,
+      bestPair.shared.decimal, null,
+      'A chance conjunta não é estimada: as seleções podem ser correlacionadas. As duas cotações são da mesma casa.'));
+    bestPair.entries.forEach(entry => usedSelections.add(selectionKey(entry.candidate)));
+  }
 
   const byBook = new Map<string, EligibleEntry[]>();
-  for (const entry of eligible) {
+  for (const entry of eligible.filter(item => !usedSelections.has(selectionKey(item.candidate)))) {
     for (const quote of quotesFor(entry)) {
       const key = bookId(quote);
       const entries = byBook.get(key) || [];

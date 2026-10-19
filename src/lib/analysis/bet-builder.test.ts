@@ -38,7 +38,7 @@ function candidate(overrides: Partial<PlayerPropCandidate> = {}): PlayerPropCand
 }
 
 describe('buildSuggestedTickets', () => {
-  it('builds single and independent two-game ticket without inventing joint probability', () => {
+  it('builds disjoint single and two-game tickets without inventing joint probability', () => {
     const second = candidate({
       id: 'event-2:Player B:player_rebounds:8.5',
       gameId: 'event-2',
@@ -53,7 +53,10 @@ describe('buildSuggestedTickets', () => {
       expectedValue: 0.12,
     });
 
-    const tickets = buildSuggestedTickets([candidate(), second]);
+    const third = candidate({
+      id: 'event-3:Player C:player_assists:5.5', gameId: 'event-3', player: 'Player C', market: 'player_assists',
+    });
+    const tickets = buildSuggestedTickets([candidate(), second, third]);
     expect(tickets).toHaveLength(2);
     expect(tickets[0].estimatedProbability).toBe(0.62);
     expect(tickets[1].combinedDecimalOdds).toBeCloseTo((1 + 100 / 110) * 2.2);
@@ -61,6 +64,13 @@ describe('buildSuggestedTickets', () => {
     expect(tickets[1].selections.map(leg => leg.quote.bookmaker)).toEqual(['Book A', 'Book A']);
     expect(tickets[1].estimatedProbability).toBeNull();
     expect(tickets[1].warning).toContain('correlacionadas');
+    const selectedIds = tickets.flatMap(ticket => ticket.selections.map(leg => leg.id));
+    expect(selectedIds[0]).toBe('event-1:Player A:player_points:20.5');
+    expect(new Set(selectedIds.slice(1))).toEqual(new Set([
+      'event-2:Player B:player_rebounds:8.5',
+      'event-3:Player C:player_assists:5.5',
+    ]));
+    expect(new Set(selectedIds).size).toBe(selectedIds.length);
   });
 
   it('does not suggest bets without quality gate, positive EV, or a quote', () => {
@@ -88,7 +98,7 @@ describe('buildSuggestedTickets', () => {
   });
 
   it('adds an exaggerated six-pick ticket only when six different players qualify', () => {
-    const six = Array.from({ length: 6 }, (_, index) => candidate({
+    const six = Array.from({ length: 9 }, (_, index) => candidate({
       id: `event-${index + 1}:Player ${index + 1}`,
       gameId: `event-${index + 1}`,
       player: `Player ${index + 1}`,
@@ -99,6 +109,8 @@ describe('buildSuggestedTickets', () => {
     expect(exaggerated?.selections).toHaveLength(6);
     expect(exaggerated?.estimatedProbability).toBeNull();
     expect(exaggerated?.warning).toContain('alto risco');
+    const ticketSelectionIds = tickets.flatMap(ticket => ticket.selections.map(leg => leg.id));
+    expect(new Set(ticketSelectionIds).size).toBe(ticketSelectionIds.length);
   });
 
   it('does not create an exaggerated ticket with fewer than six qualified players', () => {
