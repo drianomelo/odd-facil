@@ -1,6 +1,6 @@
 // @ts-ignore
 import { formatInTimeZone, toZonedTime, zonedTimeToUtc } from 'date-fns-tz';
-import { format, parseISO, isBefore, addHours, differenceInHours } from 'date-fns';
+import { format, parseISO, isBefore, differenceInHours } from 'date-fns';
 
 export const APP_TIMEZONE = process.env.APP_TIMEZONE || 'America/Bahia';
 
@@ -11,6 +11,18 @@ export function toAppTimeZone(date: Date | string): Date {
 
 export function fromAppTimeZone(date: Date): Date {
   return zonedTimeToUtc(date, APP_TIMEZONE);
+}
+
+/** Upcoming player props for today and tomorrow, plus games through 06:00 the following day. */
+export function getPlayerPropAnalysisWindow(now = new Date()): { from: Date; to: Date } {
+  const today = formatInTimeZone(now, APP_TIMEZONE, 'yyyy-MM-dd');
+  const finalDayDate = new Date(`${today}T00:00:00.000Z`);
+  finalDayDate.setUTCDate(finalDayDate.getUTCDate() + 2);
+  const finalDay = finalDayDate.toISOString().slice(0, 10);
+  return {
+    from: now,
+    to: fromAppTimeZone(new Date(`${finalDay}T06:00:00`)),
+  };
 }
 
 export function formatAppDate(date: Date | string, pattern = 'dd/MM/yyyy'): string {
