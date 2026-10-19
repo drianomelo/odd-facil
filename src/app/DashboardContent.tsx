@@ -519,7 +519,7 @@ export async function DashboardContent() {
         ];
 
   return (
-    <div className="animate-in">
+    <div className="animate-in overflow-x-clip">
       <section
         aria-label="Painel inicial NBA"
         className="relative isolate w-full overflow-hidden bg-white text-white"
@@ -567,12 +567,12 @@ export async function DashboardContent() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl space-y-8 px-4 pt-20 pb-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl  px-4 pt-16 pb-8 sm:px-6 lg:px-8">
         <GameAgendaCarousel games={scheduledGames} message={data.games_message} />
 
         <section
           aria-labelledby="player-analysis-heading"
-          className="space-y-4"
+          className="space-y-4 mt-16"
         >
           <div className="flex items-start justify-between gap-4 mb-6">
             <div className="min-w-0">
