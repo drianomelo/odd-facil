@@ -2,25 +2,56 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { games, teams, odds } from '@/lib/db/schema';
 import { eq, and, gte, lt, desc, sql } from 'drizzle-orm';
-import { fromAppTimeZone, isGameStarted } from '@/lib/utils/date';
+import { fromAppTimeZone, getPlayerPropAnalysisWindow, isGameStarted } from '@/lib/utils/date';
 import { alias } from 'drizzle-orm/pg-core';
-import { MarketOdds, SelectionType } from '@/types';
+import { Game, MarketOdds, SelectionType } from '@/types';
 import { marginFreeProbabilities } from '@/lib/utils/math';
+import { oddsApiClient } from '@/lib/api/odds-api';
 
 const homeTeam = alias(teams, 'home_team');
 const awayTeam = alias(teams, 'away_team');
 
+function gameIdentity(game: {
+  commence_time: Date | string;
+  home_team: { name: string };
+  away_team: { name: string };
+}) {
+  return [
+    new Date(game.commence_time).getTime(),
+    game.home_team.name.trim().toLowerCase(),
+    game.away_team.name.trim().toLowerCase(),
+  ].join(':');
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
-  const from = searchParams.get('from') || date;
-  const to = searchParams.get('to') || date;
+  const date = searchParams.get('date');
+  const from = searchParams.get('from');
+  const to = searchParams.get('to');
   const status = searchParams.get('status');
 
-  const startOfRange = fromAppTimeZone(new Date(`${from}T00:00:00`));
-  const dayAfterEnd = new Date(`${to}T00:00:00Z`);
-  dayAfterEnd.setUTCDate(dayAfterEnd.getUTCDate() + 1);
-  const endOfRange = fromAppTimeZone(new Date(`${dayAfterEnd.toISOString().slice(0, 10)}T00:00:00`));
+  const defaultWindow = getPlayerPropAnalysisWindow();
+  const startText = from || date;
+  const endText = to || date;
+  const rangeStart = startText
+    ? startText.includes('T') ? new Date(startText) : fromAppTimeZone(new Date(`${startText}T00:00:00`))
+    : defaultWindow.from;
+  const rangeEnd = endText
+    ? endText.includes('T')
+      ? new Date(endText)
+      : (() => {
+          const dayAfterEnd = new Date(`${endText}T00:00:00Z`);
+          dayAfterEnd.setUTCDate(dayAfterEnd.getUTCDate() + 1);
+          return fromAppTimeZone(new Date(`${dayAfterEnd.toISOString().slice(0, 10)}T00:00:00`));
+        })()
+    : defaultWindow.to;
+
+  let liveSchedule: Game[] = [];
+  try {
+    liveSchedule = await oddsApiClient.getNbaSchedule(rangeStart, rangeEnd);
+  } catch (error) {
+    console.error('[API/games] Live schedule unavailable:', error);
+  }
 
   try {
     const results = await db
@@ -33,11 +64,18 @@ export async function GET(request: NextRequest) {
       .innerJoin(homeTeam, eq(games.home_team_id, homeTeam.id))
       .innerJoin(awayTeam, eq(games.away_team_id, awayTeam.id))
       .where(and(
-        gte(games.commence_time, startOfRange),
-        lt(games.commence_time, endOfRange),
+        gte(games.commence_time, rangeStart),
+        lt(games.commence_time, rangeEnd),
         status ? eq(games.status, status) : sql`1=1`
       ))
       .orderBy(games.commence_time);
+
+    if (results.length === 0) {
+      return NextResponse.json({
+        games: liveSchedule.map(game => ({ ...game, started: isGameStarted(game.commence_time) })),
+        message: liveSchedule.length ? undefined : 'A fonte ainda não retornou jogos para este período.',
+      });
+    }
 
     const gamesWithOdds = await Promise.all(results.map(async (r) => {
       const gameOdds = await db
@@ -137,9 +175,24 @@ export async function GET(request: NextRequest) {
       };
     }));
 
-    return NextResponse.json({ games: gamesWithOdds });
+    const knownGames = new Set(gamesWithOdds.map(gameIdentity));
+    const missingGames = liveSchedule
+      .filter(game => !knownGames.has(gameIdentity(game)))
+      .map(game => ({ ...game, started: isGameStarted(game.commence_time) }));
+    const allGames = [...gamesWithOdds, ...missingGames]
+      .sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime());
+    return NextResponse.json({
+      games: allGames,
+      message: allGames.length ? undefined : 'A fonte ainda não retornou jogos para este período.',
+    });
   } catch (error) {
     console.error('[API/games] Error:', error);
+    if (liveSchedule.length) {
+      return NextResponse.json({
+        games: liveSchedule.map(game => ({ ...game, started: isGameStarted(game.commence_time) })),
+        message: 'Agenda carregada da fonte ao vivo; o banco de dados está temporariamente indisponível.',
+      });
+    }
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined }, { status: 500 });
   }
 }

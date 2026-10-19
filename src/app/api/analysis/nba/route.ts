@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDailyPlayerAnalysis } from '@/lib/api/propline';
 import { storeUpcomingPlayerPropForecasts } from '@/lib/analysis/player-prop-storage';
+import { fromAppTimeZone, getPlayerPropAnalysisWindow } from '@/lib/utils/date';
 
 export const revalidate = 900;
 
@@ -8,10 +9,13 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const fromText = searchParams.get('from');
   const toText = searchParams.get('to');
-  const from = fromText && !Number.isNaN(Date.parse(fromText)) ? new Date(fromText) : new Date();
+  const defaultWindow = getPlayerPropAnalysisWindow();
+  const from = fromText && !Number.isNaN(Date.parse(fromText))
+    ? fromText.includes('T') ? new Date(fromText) : fromAppTimeZone(new Date(`${fromText}T00:00:00`))
+    : defaultWindow.from;
   const to = toText && !Number.isNaN(Date.parse(toText))
-    ? new Date(`${toText}T23:59:59.999Z`)
-    : new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
+    ? toText.includes('T') ? new Date(toText) : fromAppTimeZone(new Date(`${toText}T23:59:59.999`))
+    : defaultWindow.to;
 
   try {
     const analysis = await getDailyPlayerAnalysis(from, to);
