@@ -4,6 +4,7 @@ import {
   PlayerPropCandidate,
   PlayerPropMarket,
   PlayerPropQuote,
+  PlayerInjuryReportEntry,
   isSyntheticPickemBook,
   resolvePlayerOpponent,
 } from '@/lib/analysis/player-props';
@@ -67,6 +68,40 @@ export async function getPlayerGameLogs(player: string, limit = 20): Promise<Pla
     status: log.status,
     stats: (log.stats || {}) as Record<string, number | string | null | undefined>,
   }));
+}
+
+async function getNbaInjuryReport(): Promise<{ available: boolean; players: PlayerInjuryReportEntry[] }> {
+  try {
+    const { body } = await getJson('/injuries', 600);
+    const bodyRecord = body as JsonRecord;
+    return {
+      available: true,
+      players: records(bodyRecord?.players || bodyRecord).map(row => ({
+        playerName: String(row.player_name || row.name || ''),
+        team: row.team ? String(row.team) : row.team_abbr ? String(row.team_abbr) : undefined,
+        status: String(row.status || row.status_code || 'status indisponível'),
+        statusCode: String(row.status_code || row.status || 'other').toLowerCase(),
+        injuryType: row.injury_type ? String(row.injury_type) : undefined,
+        bodyPart: row.body_part ? String(row.body_part) : undefined,
+        detail: row.detail ? String(row.detail) : undefined,
+        expectedReturn: row.expected_return ? String(row.expected_return) : undefined,
+        statusSince: row.status_since ? String(row.status_since) : undefined,
+      })).filter(row => row.playerName),
+    };
+  } catch (error) {
+    console.warn('[PropLine] NBA injury report unavailable:', error instanceof Error ? error.message : error);
+    return { available: false, players: [] };
+  }
+}
+
+function normalizeContextKey(value: string | null | undefined): string {
+  return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 function candidatesFromEvents(events: JsonRecord[], from: Date, to: Date) {
@@ -166,7 +201,10 @@ export async function getDailyPlayerAnalysis(from: Date, to: Date): Promise<{
     };
   }
 
-  const { body, response } = await getJson(makeOddsPath(), 900);
+  const [{ body, response }, injuryReport] = await Promise.all([
+    getJson(makeOddsPath(), 900),
+    getNbaInjuryReport(),
+  ]);
   const eventCandidates = candidatesFromEvents(records(body), from, to);
   const candidatesByPlayer = new Map<string, typeof eventCandidates>();
   for (const candidate of eventCandidates) {
@@ -194,6 +232,35 @@ export async function getDailyPlayerAnalysis(from: Date, to: Date): Promise<{
   });
   await Promise.all(workers);
 
+  // Use the player-points lines already present in today's odds response to
+  // show how the market prices each player relative to covered teammates.
+  const pointLinesByTeam = new Map<string, Map<string, { player: string; lines: number[] }>>();
+  for (const [player, props] of players) {
+    const playerTeam = histories.get(player)?.find(log => log.player_team)?.player_team;
+    if (!playerTeam) continue;
+    for (const prop of props) {
+      if (prop.market !== 'player_points') continue;
+      const home = String(prop.event.home_team || '');
+      const away = String(prop.event.away_team || '');
+      if (!resolvePlayerOpponent(playerTeam, home, away)) continue;
+      const eventTeamKey = `${String(prop.event.id)}:${normalizeContextKey(playerTeam)}`;
+      const teamPlayers = pointLinesByTeam.get(eventTeamKey)
+        || new Map<string, { player: string; lines: number[] }>();
+      const playerKey = normalizeContextKey(player);
+      const row = teamPlayers.get(playerKey) || { player, lines: [] };
+      row.lines.push(prop.line);
+      teamPlayers.set(playerKey, row);
+      pointLinesByTeam.set(eventTeamKey, teamPlayers);
+    }
+  }
+  const teammatePointsLines = new Map<string, Array<{ player: string; line: number }>>();
+  for (const [teamKey, rows] of Array.from(pointLinesByTeam.entries())) {
+    teammatePointsLines.set(teamKey, Array.from(rows.values()).map(row => ({
+      player: row.player,
+      line: median(row.lines),
+    })));
+  }
+
   const recommendations: PlayerPropCandidate[] = [];
   for (const [player, props] of players) {
     const logs = histories.get(player) || [];
@@ -215,6 +282,9 @@ export async function getDailyPlayerAnalysis(from: Date, to: Date): Promise<{
         quotes: prop.quotes,
         homeTeam: home,
         awayTeam: away,
+        teammatePointsLines: teammatePointsLines.get(`${String(prop.event.id)}:${normalizeContextKey(currentPlayerTeam)}`) || [],
+        injuryReportPlayers: injuryReport.players,
+        injuryReportAvailable: injuryReport.available,
       });
       if (analyzed) recommendations.push(analyzed);
     }

@@ -95,25 +95,14 @@ function selection(candidate: PlayerPropCandidate, quote: PlayerPropQuote): BetS
   };
 }
 
-function bestSharedBook(entries: EligibleEntry[]): { bookmaker: string; quotes: PlayerPropQuote[]; decimal: number } | null {
-  if (!entries.length) return null;
-  const choices = new Map<string, PlayerPropQuote[]>();
-  for (const quote of quotesFor(entries[0])) choices.set(bookId(quote), [quote]);
-  for (const entry of entries.slice(1)) {
-    const available = new Map(quotesFor(entry).map(quote => [bookId(quote), quote]));
-    for (const [key, quotes] of Array.from(choices.entries())) {
-      const quote = available.get(key);
-      if (!quote) choices.delete(key);
-      else quotes.push(quote);
-    }
-  }
-  let best: { bookmaker: string; quotes: PlayerPropQuote[]; decimal: number } | null = null;
-  for (const quotes of Array.from(choices.values())) {
-    if (quotes.length !== entries.length) continue;
-    const decimal = quotes.reduce((total, quote) => total * toDecimalOdds(quote.price), 1);
-    if (!best || decimal > best.decimal) best = { bookmaker: quotes[0].bookmaker, quotes, decimal };
-  }
-  return best;
+function bestAvailableQuote(entry: EligibleEntry): PlayerPropQuote {
+  return quotesFor(entry).reduce((best, quote) =>
+    toDecimalOdds(quote.price) > toDecimalOdds(best.price) ? quote : best, entry.quote);
+}
+
+function ticketBookmaker(quotes: PlayerPropQuote[]): string {
+  const books = new Map(quotes.map(quote => [bookId(quote), quote.bookmaker]));
+  return books.size === 1 ? Array.from(books.values())[0] : 'Casas variadas';
 }
 
 function makeTicket(
@@ -127,12 +116,12 @@ function makeTicket(
     combinedDecimalOdds: decimal,
     combinedAmericanOdds: entries.length === 1 ? quotes[0].price : toAmericanOdds(decimal),
     estimatedProbability,
-    bookmaker: quotes[0].bookmaker,
+    bookmaker: ticketBookmaker(quotes),
     warning,
   };
 }
 
-/** Suggestions use one sportsbook for every leg so the displayed combined price is attainable there. */
+/** Each leg uses its best available quote; mixed-book combined odds are an estimate across books. */
 export function buildSuggestedTickets(candidates: PlayerPropCandidate[]): SuggestedTicket[] {
   const eligible = candidates
     .map(candidate => ({ candidate, quote: getQuote(candidate), expectedValue: getExpectedValue(candidate) }))
@@ -145,50 +134,40 @@ export function buildSuggestedTickets(candidates: PlayerPropCandidate[]): Sugges
   const usedSelections = new Set<string>();
   const top = eligible[0];
   if (top) {
-    const quote = quotesFor(top).reduce<PlayerPropQuote | undefined>((best, current) =>
-      !best || toDecimalOdds(current.price) > toDecimalOdds(best.price) ? current : best, undefined) || top.quote;
+    const quote = bestAvailableQuote(top);
     tickets.push(makeTicket('single', 'Simples', [top], [quote], toDecimalOdds(quote.price), getProbability(top.candidate)));
     usedSelections.add(selectionKey(top.candidate));
   }
 
-  let bestPair: { entries: EligibleEntry[]; shared: NonNullable<ReturnType<typeof bestSharedBook>> } | null = null;
+  let bestPair: { entries: EligibleEntry[]; quotes: PlayerPropQuote[]; decimal: number } | null = null;
   const pairPool = eligible.filter(entry => !usedSelections.has(selectionKey(entry.candidate))).slice(0, 80);
   for (let i = 0; i < pairPool.length; i += 1) {
     for (let j = i + 1; j < pairPool.length; j += 1) {
       const pair = [pairPool[i], pairPool[j]];
       if (pair[0].candidate.gameId === pair[1].candidate.gameId || pair[0].candidate.player === pair[1].candidate.player) continue;
-      const shared = bestSharedBook(pair);
-      if (shared && (!bestPair || shared.decimal > bestPair.shared.decimal)) bestPair = { entries: pair, shared };
+      const quotes = pair.map(bestAvailableQuote);
+      const decimal = quotes.reduce((total, quote) => total * toDecimalOdds(quote.price), 1);
+      if (!bestPair || decimal > bestPair.decimal) bestPair = { entries: pair, quotes, decimal };
     }
   }
   if (bestPair) {
-    tickets.push(makeTicket('double', 'Múltipla com 2 seleções', bestPair.entries, bestPair.shared.quotes,
-      bestPair.shared.decimal, null,
-      'A chance conjunta não é estimada: as seleções podem ser correlacionadas. As duas cotações são da mesma casa.'));
+    tickets.push(makeTicket('double', 'Múltipla com 2 seleções', bestPair.entries, bestPair.quotes,
+      bestPair.decimal, null,
+      'Chance conjunta não estimada; seleções podem ser correlacionadas. A odd combina as melhores cotações encontradas, que podem ser de casas diferentes.'));
     bestPair.entries.forEach(entry => usedSelections.add(selectionKey(entry.candidate)));
   }
 
-  const byBook = new Map<string, EligibleEntry[]>();
-  for (const entry of eligible.filter(item => !usedSelections.has(selectionKey(item.candidate)))) {
-    for (const quote of quotesFor(entry)) {
-      const key = bookId(quote);
-      const entries = byBook.get(key) || [];
-      if (!entries.some(other => other.candidate.player === entry.candidate.player)) entries.push(entry);
-      byBook.set(key, entries);
-    }
-  }
-  let bestExaggerated: { entries: EligibleEntry[]; shared: NonNullable<ReturnType<typeof bestSharedBook>> } | null = null;
-  for (const entries of Array.from(byBook.values())) {
-    const unique = entries.filter((entry, index, all) => all.findIndex(other =>
-      other.candidate.player === entry.candidate.player || other.candidate.gameId === entry.candidate.gameId,
+  const unique = eligible.filter(item => !usedSelections.has(selectionKey(item.candidate)))
+    .filter((entry, index, all) => all.findIndex(other =>
+      other.candidate.player.toLowerCase() === entry.candidate.player.toLowerCase()
+        || other.candidate.gameId === entry.candidate.gameId,
     ) === index).slice(0, 6);
-    if (unique.length < 6) continue;
-    const shared = bestSharedBook(unique);
-    if (shared && (!bestExaggerated || shared.decimal > bestExaggerated.shared.decimal)) bestExaggerated = { entries: unique, shared };
+  if (unique.length === 6) {
+    const quotes = unique.map(bestAvailableQuote);
+    const decimal = quotes.reduce((total, quote) => total * toDecimalOdds(quote.price), 1);
+    tickets.push(makeTicket('exaggerated', 'Exagerada · 6 palpites', unique, quotes, decimal, null,
+      'Alto risco. Chance conjunta não estimada; seleções podem ser correlacionadas. A odd combina as melhores cotações encontradas, que podem ser de casas diferentes.'));
   }
-  if (bestExaggerated) tickets.push(makeTicket('exaggerated', 'Exagerada · 6 palpites', bestExaggerated.entries,
-    bestExaggerated.shared.quotes, bestExaggerated.shared.decimal, null,
-    'Bilhete de alto risco. A chance conjunta não é estimada e as seleções podem ser correlacionadas. As seis cotações são da mesma casa.'));
 
   return tickets;
 }

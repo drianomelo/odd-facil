@@ -53,6 +53,29 @@ describe('analyzePlayerProp matchup validation', () => {
     expect(candidate?.opponentAverage).toBe(30);
   });
 
+  it('adds free market role and teammate injury context to the analysis', () => {
+    const candidate = analyzePlayerProp({
+      ...input(makeLogs('Boston Celtics')),
+      teammatePointsLines: [
+        { player: 'Example Player', line: 25.5 },
+        { player: 'Scoring Teammate', line: 30.5 },
+        { player: 'Another Teammate', line: 18.5 },
+      ],
+      injuryReportAvailable: true,
+      injuryReportPlayers: [{
+        playerName: 'Scoring Teammate',
+        team: 'Boston Celtics',
+        status: 'Questionable',
+        statusCode: 'questionable',
+      }],
+    });
+
+    expect(candidate?.contextNotes).toEqual(expect.arrayContaining([
+      expect.stringContaining('2º entre 3 jogadores'),
+      expect.stringContaining('Scoring Teammate (Questionable)'),
+    ]));
+  });
+
   it('drops a player prop entirely when the player team cannot be verified for the event', () => {
     const candidate = analyzePlayerProp(input(makeLogs()));
     expect(candidate).toBeNull();

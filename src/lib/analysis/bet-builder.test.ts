@@ -59,9 +59,9 @@ describe('buildSuggestedTickets', () => {
     const tickets = buildSuggestedTickets([candidate(), second, third]);
     expect(tickets).toHaveLength(2);
     expect(tickets[0].estimatedProbability).toBe(0.62);
-    expect(tickets[1].combinedDecimalOdds).toBeCloseTo((1 + 100 / 110) * 2.2);
-    expect(tickets[1].bookmaker).toBe('Book A');
-    expect(tickets[1].selections.map(leg => leg.quote.bookmaker)).toEqual(['Book A', 'Book A']);
+    expect(tickets[1].combinedDecimalOdds).toBeCloseTo((1 + 100 / 110) * 2.3);
+    expect(tickets[1].bookmaker).toBe('Casas variadas');
+    expect(tickets[1].selections.map(leg => leg.quote.bookmaker)).toEqual(['Book A', 'Book B']);
     expect(tickets[1].estimatedProbability).toBeNull();
     expect(tickets[1].warning).toContain('correlacionadas');
     const selectedIds = tickets.flatMap(ticket => ticket.selections.map(leg => leg.id));
@@ -87,14 +87,19 @@ describe('buildSuggestedTickets', () => {
     expect(buildSuggestedTickets([candidate(), sameGame])).toHaveLength(1);
   });
 
-  it('does not show a multiple when the legs do not share a sportsbook', () => {
+  it('builds a multiple from the best quote at each sportsbook even when no book is shared', () => {
     const second = candidate({
       id: 'event-2:Player B:player_assists:5.5', gameId: 'event-2', player: 'Player B',
       bestOver: { side: 'Over', price: 120, bookmaker: 'Book B', updatedAt: '2026-10-20T12:00:00Z' },
       quotes: [{ side: 'Over', price: 120, bookmaker: 'Book B', updatedAt: '2026-10-20T12:00:00Z' }],
     });
-    const tickets = buildSuggestedTickets([candidate(), second]);
-    expect(tickets.map(ticket => ticket.id)).toEqual(['single']);
+    const third = candidate({ id: 'event-3:Player C:player_rebounds:8.5', gameId: 'event-3', player: 'Player C' });
+    const tickets = buildSuggestedTickets([candidate(), second, third]);
+    expect(tickets.map(ticket => ticket.id)).toEqual(['single', 'double']);
+    const double = tickets.find(ticket => ticket.id === 'double')!;
+    expect(double.selections.map(leg => leg.quote.bookmaker)).toEqual(['Book B', 'Book A']);
+    expect(double.bookmaker).toBe('Casas variadas');
+    expect(double.combinedDecimalOdds).toBeCloseTo((1 + 100 / 110) * 2.2);
   });
 
   it('adds an exaggerated six-pick ticket only when six different players qualify', () => {
@@ -108,7 +113,7 @@ describe('buildSuggestedTickets', () => {
     const exaggerated = tickets.find(ticket => ticket.id === 'exaggerated');
     expect(exaggerated?.selections).toHaveLength(6);
     expect(exaggerated?.estimatedProbability).toBeNull();
-    expect(exaggerated?.warning).toContain('alto risco');
+    expect(exaggerated?.warning?.toLowerCase()).toContain('alto risco');
     const ticketSelectionIds = tickets.flatMap(ticket => ticket.selections.map(leg => leg.id));
     expect(new Set(ticketSelectionIds).size).toBe(ticketSelectionIds.length);
   });

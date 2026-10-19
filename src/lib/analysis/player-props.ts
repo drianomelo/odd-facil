@@ -22,6 +22,23 @@ export interface PlayerPropQuote {
   updatedAt: string;
 }
 
+export interface PlayerInjuryReportEntry {
+  playerName: string;
+  team?: string;
+  status: string;
+  statusCode: string;
+  injuryType?: string;
+  bodyPart?: string;
+  detail?: string;
+  expectedReturn?: string;
+  statusSince?: string;
+}
+
+export interface TeammatePointsLine {
+  player: string;
+  line: number;
+}
+
 export interface PlayerPropCandidate {
   id: string;
   gameId: string;
@@ -59,6 +76,7 @@ export interface PlayerPropCandidate {
   confidence: 'baixa' | 'moderada';
   reasons: string[];
   limitations: string[];
+  contextNotes?: string[];
 }
 
 const STAT_FIELDS: Record<PlayerPropMarket, string[]> = {
@@ -157,6 +175,9 @@ export function analyzePlayerProp(input: {
   quotes: PlayerPropQuote[];
   homeTeam: string;
   awayTeam: string;
+  teammatePointsLines?: TeammatePointsLine[];
+  injuryReportPlayers?: PlayerInjuryReportEntry[];
+  injuryReportAvailable?: boolean;
 }): PlayerPropCandidate | null {
   const logs = input.logs
     .filter(log => !log.status || log.status === 'final')
@@ -187,6 +208,51 @@ export function analyzePlayerProp(input: {
   const opponentAverage = opponentLogs.length >= 2
     ? average(opponentLogs.map(row => row.value))
     : undefined;
+
+  const playerPointsLine = input.teammatePointsLines?.find(row =>
+    normalizeTeamName(row.player) === normalizeTeamName(input.player),
+  )?.line ?? (input.market === 'player_points' ? input.line : undefined);
+  const sameTeamPointsLines = (input.teammatePointsLines || [])
+    .filter(row => normalizeTeamName(row.player) !== normalizeTeamName(input.player))
+    .sort((a, b) => b.line - a.line);
+  const higherPointsLinePeers = playerPointsLine === undefined
+    ? []
+    : sameTeamPointsLines.filter(row => row.line > playerPointsLine);
+  const teamInjuries = (input.injuryReportPlayers || []).filter(row =>
+    normalizeTeamName(row.team) === normalizeTeamName(playerTeam),
+  );
+  const playerInjury = teamInjuries.find(row =>
+    normalizeTeamName(row.playerName) === normalizeTeamName(input.player),
+  );
+  const teammateInjuries = teamInjuries.filter(row =>
+    normalizeTeamName(row.playerName) !== normalizeTeamName(input.player),
+  );
+  const contextNotes: string[] = [];
+  if (playerPointsLine !== undefined && sameTeamPointsLines.length) {
+    const rank = higherPointsLinePeers.length + 1;
+    contextNotes.push(
+      `Linhas de pontos do mercado: ${input.player} está em ${rank}º entre ${sameTeamPointsLines.length + 1} jogadores do time com cotação (${playerPointsLine}); ${higherPointsLinePeers.length} têm linha acima (${higherPointsLinePeers.slice(0, 4).map(row => `${row.player} ${row.line}`).join(', ') || 'nenhum'}).`,
+    );
+  } else {
+    contextNotes.push('Não há linhas de pontos de companheiros suficientes para comparar o papel ofensivo neste jogo.');
+  }
+
+  if (input.injuryReportAvailable) {
+    if (playerInjury) {
+      const detail = [playerInjury.injuryType, playerInjury.bodyPart, playerInjury.detail].filter(Boolean).join(' · ');
+      contextNotes.push(`Relatório de lesões ESPN via PropLine: ${playerInjury.playerName} está ${playerInjury.status.toLowerCase()}${detail ? ` (${detail})` : ''}. Confirme a situação antes do jogo.`);
+    }
+    const relevantTeammateInjuries = teammateInjuries.filter(row =>
+      ['out', 'doubtful', 'questionable', 'day_to_day', 'injured_list', 'suspended'].includes(row.statusCode.toLowerCase()),
+    );
+    if (relevantTeammateInjuries.length) {
+      contextNotes.push(`Relatório de lesões ESPN via PropLine: ${relevantTeammateInjuries.slice(0, 4).map(row => `${row.playerName} (${row.status})`).join(', ')}. Isso pode redistribuir minutos e volume; o modelo não aumenta a projeção automaticamente.`);
+    } else if (!playerInjury) {
+      contextNotes.push('Relatório de lesões ESPN via PropLine consultado: sem este jogador ou companheiros listados como desfalque ou dúvida. Isso não confirma a escalação titular.');
+    }
+  } else {
+    contextNotes.push('Relatório de lesões ESPN via PropLine indisponível nesta atualização; confirme desfalques e escalações antes de usar o palpite.');
+  }
 
   const perMinuteProjection = minutes.length >= 5 && avgMinutes > 0
     ? average(last5.map(row => row.minutes && row.minutes > 0 ? row.value / row.minutes : row.value / avgMinutes))
@@ -245,10 +311,11 @@ export function analyzePlayerProp(input: {
   if (avgMinutes > 0) reasons.push(`Média de ${avgMinutes.toFixed(1)} minutos; tendência recente ${minuteTrend && minuteTrend >= 1 ? '+' : ''}${minuteTrend ? `${((minuteTrend - 1) * 100).toFixed(0)}%` : 'indisponível'}`);
   if (opponentAverage !== undefined) reasons.push(`${opponentAverage.toFixed(1)} de média nos ${opponentLogs.length} jogos recentes contra o adversário`);
   if (edge !== undefined) reasons.push(`Diferença de ${(edge * 100).toFixed(1)} p.p. sobre a probabilidade média sem margem do mercado`);
+  reasons.push(...contextNotes);
 
   const limitations = [
     'Projeção experimental baseada em logs recentes; ainda sem validação retrospectiva e calibração de probabilidades.',
-    'Lesões, escalações e minutos esperados precisam ser confirmados antes do jogo.',
+    'As linhas dos companheiros e o relatório de lesões são sinais contextuais; não revelam diretamente a função tática nem os minutos que o técnico dará ao jogador.',
   ];
   if (!teamVerified) limitations.push('Não foi possível confirmar o time atual do jogador neste confronto; H2H e ajuste de adversário foram ignorados.');
   else if (opponentAverage === undefined) limitations.push('Amostra direta recente contra este adversário insuficiente; matchup não altera a projeção.');
@@ -304,5 +371,6 @@ export function analyzePlayerProp(input: {
     confidence,
     reasons,
     limitations,
+    contextNotes,
   };
 }
