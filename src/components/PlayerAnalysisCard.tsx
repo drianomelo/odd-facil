@@ -52,7 +52,7 @@ export function PlayerAnalysisCard({ pick, selected = false, disabled = false, o
               <h4 className="font-semibold text-court-text">{pick.player}</h4>
               <TeamLogo team={pick.team} size="xs" />
             </div>
-            <p className="text-sm text-court-textMuted">{MARKET_LABELS[pick.market]} · {side} {pick.line}</p>
+            <p className="text-sm text-court-textMuted">{MARKET_LABELS[pick.market]} · {isOver ? 'Mais de' : 'Menos de'} {pick.line}</p>
           </div>
         </div>
         <span className={`badge ${pick.shortlistEligible ? 'badge-success' : 'badge-warning'}`}>
@@ -70,6 +70,17 @@ export function PlayerAnalysisCard({ pick, selected = false, disabled = false, o
         <p>Adversário: {pick.teamVerified ? `${pick.opponent} · time confirmado` : 'não confirmado pelo histórico'}</p>
         <p>Amostra: {pick.sampleSize} jogos · confiança {pick.confidence} · L5 {pick.last5Average.toFixed(1)} · L10 {pick.last10Average.toFixed(1)} · L20 {pick.last20Average.toFixed(1)}</p>
       </div>
+      {!!pick.contextNotes?.length && (
+        <div className="rounded-lg border border-[#58A9E3]/40 bg-[#F4FAFE] p-3">
+          <p className="text-xs font-semibold text-[#005A9C]">Elenco e contexto do jogo</p>
+          <ul className="mt-1.5 space-y-1.5 text-xs leading-5 text-court-textMuted">
+            {pick.contextNotes.map(note => <li key={note}>{note}</li>)}
+          </ul>
+          <p className="mt-2 border-t border-[#58A9E3]/25 pt-2 text-[10px] leading-4 text-court-textMuted">
+            As linhas dos companheiros representam o mercado disponível, não uma confirmação de função tática. Lesões podem redistribuir oportunidades; o modelo não presume aumento automático.
+          </p>
+        </div>
+      )}
       <div className="rounded-lg border border-[#58A9E3]/40 bg-[#EAF5FC] p-3 text-sm">
         <p className="font-medium text-[#005A9C]">Leitura do palpite</p>
         <p className="mt-1 text-xs leading-5 text-court-textMuted">{interpretation}</p>
