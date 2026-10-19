@@ -153,6 +153,20 @@
     animation: fadeIn 0.3s ease-out, slideUp 0.3s ease-out;
   }
 
+  .game-marquee-track.is-looping {
+    animation: game-marquee linear infinite;
+  }
+
+  .game-marquee-track.is-looping:hover,
+  .game-marquee-track.is-looping:focus-within,
+  .game-marquee-track.is-paused {
+    animation-play-state: paused;
+  }
+
+  @keyframes game-marquee {
+    to { transform: translateX(-50%); }
+  }
+
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -162,6 +176,12 @@
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-marquee-viewport { overflow-x: auto; }
+  .game-marquee-track.is-looping { animation: none; }
+  .game-marquee-track > div[aria-hidden="true"] { display: none; }
 }
 
 body {
