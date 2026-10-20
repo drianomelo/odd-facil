@@ -62,6 +62,11 @@ interface DashboardData {
       hitRate: number | null;
       meanAbsoluteError: number | null;
       brierScore: number | null;
+      marketBrierScore: number | null;
+      validationSample: number;
+      validationGameDays: number;
+      validationStatus: "insufficient" | "evaluated" | "validated";
+      validationRoiPercent: number | null;
     }>;
     message?: string;
   };

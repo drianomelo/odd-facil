@@ -13,8 +13,9 @@ const MARKET_LABELS: Record<PlayerPropMarket, string> = {
   player_points_rebounds_assists: 'Pontos + rebotes + assistências',
 };
 
-export function PlayerAnalysisCard({ pick, selected = false, disabled = false, onToggle }: {
+export function PlayerAnalysisCard({ pick, validation, selected = false, disabled = false, onToggle }: {
   pick: PlayerPropCandidate;
+  validation?: { validationStatus?: 'insufficient' | 'evaluated' | 'validated'; validationSample?: number; validationGameDays?: number; brierScore?: number | null; marketBrierScore?: number | null; validationRoiPercent?: number | null };
   selected?: boolean;
   disabled?: boolean;
   onToggle?: (pick: PlayerPropCandidate) => void;
@@ -55,9 +56,13 @@ export function PlayerAnalysisCard({ pick, selected = false, disabled = false, o
             <p className="text-sm text-court-textMuted">{MARKET_LABELS[pick.market]} · {isOver ? 'Mais de' : 'Menos de'} {pick.line}</p>
           </div>
         </div>
-        <span className={`badge ${pick.shortlistEligible ? 'badge-success' : 'badge-warning'}`}>
-          {pick.shortlistEligible ? 'Candidato para validação' : !pick.teamVerified ? 'Exploratório · time não confirmado' : pick.sampleSize < 15 ? 'Exploratório · amostra curta' : 'Exploratório · minutos instáveis'}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span className={`badge ${pick.shortlistEligible ? 'badge-success' : 'badge-warning'}`}>
+            {pick.shortlistEligible ? 'Candidato para validação' : !pick.teamVerified ? 'Exploratório · time não confirmado' : pick.sampleSize < 15 ? 'Exploratório · amostra curta' : 'Exploratório · minutos instáveis'}
+          </span>
+          {validation?.validationStatus === 'validated' && <span className="badge badge-success" title={`Mercado avaliado em ${validation.validationSample} palpites de ${validation.validationGameDays} dias. Brier modelo ${validation.brierScore?.toFixed(3)} vs. mercado ${validation.marketBrierScore?.toFixed(3)}; ROI histórico ${validation.validationRoiPercent?.toFixed(1)}%.`}>Mercado validado historicamente</span>}
+          {validation?.validationStatus === 'evaluated' && <span className="badge badge-warning" title={`Amostra de ${validation.validationSample} palpites em ${validation.validationGameDays} dias; os critérios definidos para validação não foram atingidos.`}>Mercado avaliado · sem validação</span>}
+        </div>
       </div>
       <div className="grid grid-cols-3 gap-2 border-y border-[#58A9E3]/35 py-3 text-center">
         <div><p className="text-xs text-court-textMuted">Projeção</p><p className="font-mono font-semibold text-court-text">{pick.projection.toFixed(1)}</p></div>

@@ -19,7 +19,7 @@ type Group = {
   totalCount: number;
   eligibleCount: number;
   picks: PlayerPropCandidate[];
-  performance?: { settled: number; wins: number; losses: number; pushes: number; pending: number };
+  performance?: { settled: number; wins: number; losses: number; pushes: number; pending: number; validationStatus?: 'insufficient' | 'evaluated' | 'validated'; validationSample?: number; validationGameDays?: number; brierScore?: number | null; marketBrierScore?: number | null; validationRoiPercent?: number | null };
 };
 
 const TICKET_STORAGE_KEY = 'odd-facil-player-ticket-v1';
@@ -59,6 +59,7 @@ export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Gr
   const [stakeAmount, setStakeAmount] = useState('');
   const [potentialReturn, setPotentialReturn] = useState('');
   const [feedback, setFeedback] = useState<{ text: string; error?: boolean } | null>(null);
+  const [historicalValidation, setHistoricalValidation] = useState<Record<string, Group['performance']>>({});
   const selectedIds = selected.map(pick => pick.id);
 
   const sameGame = new Set(selected.map(pick => pick.gameId)).size !== selected.length;
@@ -80,6 +81,16 @@ export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Gr
     }
     setTicketLoaded(true);
   }, []);
+
+  useEffect(() => {
+    if (groups.every(group => group.performance?.validationStatus)) return;
+    let active = true;
+    fetch('/api/analysis/nba/performance', { cache: 'no-store' })
+      .then(async response => { if (!response.ok) throw new Error('performance unavailable'); return response.json(); })
+      .then(body => { if (active) setHistoricalValidation(Object.fromEntries((body.byMarket || []).map((row: NonNullable<Group['performance']> & { market: string }) => [row.market, row]))); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [groups]);
 
   useEffect(() => {
     if (!ticketLoaded) return;
@@ -166,6 +177,7 @@ export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Gr
                   <PlayerAnalysisCard
                     key={pick.id}
                     pick={pick}
+                    validation={group.performance || historicalValidation[group.market]}
                     selected={selectedIds.includes(pick.id)}
                     disabled={selectedIds.length >= 10}
                     onToggle={togglePick}

@@ -78,7 +78,16 @@ export async function GET(request: NextRequest) {
       losses: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'lost')`,
       pushes: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'push')`,
       meanAbsoluteError: sql<number>`avg(abs(${playerPropForecasts.actual_value} - ${playerPropForecasts.projection})) filter (where ${playerPropForecasts.actual_value} is not null)`,
-      brierScore: sql<number>`avg(power(${playerPropForecasts.predicted_probability} - case when ${playerPropForecasts.result} = 'won' then 1 else 0 end, 2)) filter (where ${playerPropForecasts.result} in ('won', 'lost'))`,
+      validationSample: sql<number>`count(*) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.market_probability} is not null)`,
+      validationGameDays: sql<number>`count(distinct (${playerPropForecasts.commence_time} at time zone 'America/New_York')::date) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.market_probability} is not null)`,
+      brierScore: sql<number>`avg(power(${playerPropForecasts.predicted_probability} - case when ${playerPropForecasts.result} = 'won' then 1 else 0 end, 2)) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.market_probability} is not null)`,
+      marketBrierScore: sql<number>`avg(power(${playerPropForecasts.market_probability} - case when ${playerPropForecasts.result} = 'won' then 1 else 0 end, 2)) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.market_probability} is not null)`,
+      betsWithOdds: sql<number>`count(*) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.american_odds} is not null)`,
+      netUnits: sql<number>`coalesce(sum(case
+        when ${playerPropForecasts.result} = 'won' and ${playerPropForecasts.american_odds} > 0 then ${playerPropForecasts.american_odds}::numeric / 100
+        when ${playerPropForecasts.result} = 'won' and ${playerPropForecasts.american_odds} < 0 then 100::numeric / abs(${playerPropForecasts.american_odds})
+        when ${playerPropForecasts.result} = 'lost' and ${playerPropForecasts.american_odds} is not null then -1
+        else 0 end), 0)`,
     }).from(playerPropForecasts)
       .where(where)
       .groupBy(playerPropForecasts.market);
@@ -114,6 +123,19 @@ export async function GET(request: NextRequest) {
       })),
       byMarket: marketRows.map(marketRow => {
         const marketDecisive = Number(marketRow.wins || 0) + Number(marketRow.losses || 0);
+        const validationSample = Number(marketRow.validationSample || 0);
+        const validationGameDays = Number(marketRow.validationGameDays || 0);
+        const marketBrierScore = marketRow.marketBrierScore === null ? null : Number(marketRow.marketBrierScore);
+        const modelBrierScore = marketRow.brierScore === null ? null : Number(marketRow.brierScore);
+        const betsWithOdds = Number(marketRow.betsWithOdds || 0);
+        const netUnits = Number(marketRow.netUnits || 0);
+        const roiPercent = betsWithOdds ? netUnits / betsWithOdds * 100 : null;
+        // Conservative operational threshold, not a universal statistical guarantee.
+        const enoughValidationData = validationSample >= 250 && validationGameDays >= 30 && betsWithOdds >= 250;
+        const validationStatus = !enoughValidationData ? 'insufficient'
+          : modelBrierScore !== null && marketBrierScore !== null
+            && modelBrierScore <= marketBrierScore * 0.95 && roiPercent !== null && roiPercent > 0
+            ? 'validated' : 'evaluated';
         return {
           market: marketRow.market as PlayerPropMarket,
           totalForecasts: Number(marketRow.total),
@@ -124,7 +146,12 @@ export async function GET(request: NextRequest) {
           pushes: Number(marketRow.pushes || 0),
           hitRate: marketDecisive ? Number(marketRow.wins || 0) / marketDecisive : null,
           meanAbsoluteError: marketRow.meanAbsoluteError === null ? null : Number(marketRow.meanAbsoluteError),
-          brierScore: marketRow.brierScore === null ? null : Number(marketRow.brierScore),
+          brierScore: modelBrierScore,
+          marketBrierScore,
+          validationSample,
+          validationGameDays,
+          validationStatus,
+          validationRoiPercent: roiPercent,
         };
       }),
       message: settled ? undefined : 'Ainda não há previsões apuradas. Os resultados aparecem após os jogos e a rotina diária de apuração.',
