@@ -2,6 +2,7 @@ import { formatAppDate, getPlayerPropAnalysisWindow, isGameStarted } from "@/lib
 import { Opportunity, Game, SourceStatus } from "@/types";
 import { OpportunityCard } from "@/components/OpportunityCard";
 import { GameAgendaCarousel } from "@/components/GameAgendaCarousel";
+import { GameTable } from "@/components/GameTable";
 import { SourceStatusCard } from "@/components/SourceStatusCard";
 import { StatsSummary } from "@/components/StatsSummary";
 import { headers } from "next/headers";
@@ -772,6 +773,8 @@ export async function DashboardContent() {
             )}
           </section>
         )}
+
+        <GameTable games={scheduledGames} />
 
       </div>
     </div>

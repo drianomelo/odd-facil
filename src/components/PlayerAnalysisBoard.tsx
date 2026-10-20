@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PlayerAnalysisCard } from '@/components/PlayerAnalysisCard';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { TeamLogo, TeamMatchup } from '@/components/TeamLogo';
@@ -21,6 +21,8 @@ type Group = {
   picks: PlayerPropCandidate[];
   performance?: { settled: number; wins: number; losses: number; pushes: number; pending: number };
 };
+
+const TICKET_STORAGE_KEY = 'odd-facil-player-ticket-v1';
 
 function bookKey(quote: PlayerPropQuote) {
   return (quote.bookmakerKey || quote.bookmaker.trim().toLowerCase()).trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -49,15 +51,15 @@ function bookmakerSummary(quotes: Array<PlayerPropQuote | undefined>) {
 }
 
 export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Group[]; saveEnabled?: boolean }) {
-  const candidates = groups.flatMap(group => group.picks);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selected, setSelected] = useState<PlayerPropCandidate[]>([]);
+  const [ticketLoaded, setTicketLoaded] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [stakeAmount, setStakeAmount] = useState('');
   const [potentialReturn, setPotentialReturn] = useState('');
   const [feedback, setFeedback] = useState<{ text: string; error?: boolean } | null>(null);
-  const selected = candidates.filter(pick => selectedIds.includes(pick.id));
+  const selectedIds = selected.map(pick => pick.id);
 
   const sameGame = new Set(selected.map(pick => pick.gameId)).size !== selected.length;
   const selectedQuotes = useMemo(() => selected.map(bestQuote), [selected]);
@@ -66,12 +68,35 @@ export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Gr
   const combinedDecimalOdds = !hasAllQuotes ? null : availableQuotes.reduce((product, quote) => product * americanToDecimal(quote.price), 1);
   const selectedBookmaker = bookmakerSummary(selectedQuotes);
 
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(TICKET_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setSelected(parsed.slice(0, 10));
+      }
+    } catch {
+      window.localStorage.removeItem(TICKET_STORAGE_KEY);
+    }
+    setTicketLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!ticketLoaded) return;
+    window.localStorage.setItem(TICKET_STORAGE_KEY, JSON.stringify(selected));
+    window.dispatchEvent(new Event('odd-facil-ticket-updated'));
+  }, [selected, ticketLoaded]);
+
   function togglePick(pick: PlayerPropCandidate) {
     setFeedback(null);
     setSaved(false);
-    setSelectedIds(current => current.includes(pick.id)
-      ? current.filter(id => id !== pick.id)
-      : current.length < 10 ? [...current, pick.id] : current);
+    const playerKey = pick.player.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+    setSelected(current => {
+      const alreadySelected = current.some(item => item.id === pick.id);
+      if (alreadySelected) return current.filter(item => item.id !== pick.id);
+      const withoutPlayer = current.filter(item => item.player.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase() !== playerKey);
+      return withoutPlayer.length < 10 ? [...withoutPlayer, pick] : current;
+    });
     setExpanded(true);
   }
 
@@ -197,7 +222,7 @@ export function PlayerAnalysisBoard({ groups, saveEnabled = true }: { groups: Gr
                 <button type="button" disabled={!hasAllQuotes || !(Number(stakeAmount) > 0) || saving || saved} onClick={() => void saveTicket()} className="btn-primary flex-1 justify-center px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50">
                   {saving ? 'Salvando…' : saved ? 'Salvo no Histórico' : 'Salvar bilhete'}
                 </button>
-                <button type="button" onClick={() => { setSelectedIds([]); setFeedback(null); setSaved(false); setStakeAmount(''); setPotentialReturn(''); }} className="btn-ghost px-3 py-2 text-sm">Limpar</button>
+                <button type="button" onClick={() => { setSelected([]); setFeedback(null); setSaved(false); setStakeAmount(''); setPotentialReturn(''); }} className="btn-ghost px-3 py-2 text-sm">Limpar</button>
               </div>
             </div>
           )}

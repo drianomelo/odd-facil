@@ -1,3 +1,5 @@
+"use client";
+
 const NBA_TEAMS = [
   { id: "1610612737", abbreviation: "ATL", color: "#C8102E", names: ["Atlanta Hawks"] },
   { id: "1610612738", abbreviation: "BOS", color: "#007A33", names: ["Boston Celtics"] },
@@ -18,7 +20,7 @@ const NBA_TEAMS = [
   { id: "1610612754", abbreviation: "IND", color: "#F7B11A", names: ["Indiana Pacers"] },
   {
     id: "1610612746",
-    abbreviation: "LAC",
+    abbreviation: "LOS",
     color: "#0A213E",
     names: ["LA Clippers", "Los Angeles Clippers"],
   },
