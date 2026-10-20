@@ -190,6 +190,18 @@
   .game-marquee-track > div[aria-hidden="true"] { display: none; }
 }
 
+@media (max-width: 639px) {
+  .game-marquee-viewport {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .game-marquee-viewport::-webkit-scrollbar { display: none; }
+  .game-marquee-track.is-looping { animation: none; }
+  .game-marquee-track > div[aria-hidden="true"] { display: none; }
+}
+
 body {
   font-family: var(--font-urbanist-loaded), var(--font-urbanist), system-ui, sans-serif;
 }

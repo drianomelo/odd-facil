@@ -551,7 +551,7 @@ export async function DashboardContent() {
             </div>
           </aside>
 
-          <div className="relative order-1 min-h-[50vh] lg:order-2 lg:min-h-0">
+          <div className="relative order-1 hidden min-h-[50vh] sm:block lg:order-2 lg:min-h-0">
             <PlayerSpotlight />
           </div>
 
@@ -573,22 +573,22 @@ export async function DashboardContent() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl  px-4 pt-16 pb-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 pt-8 pb-8 sm:px-6 sm:pt-16 lg:px-8">
         <GameAgendaCarousel games={scheduledGames} message={data.games_message} />
 
         <section
           aria-labelledby="player-analysis-heading"
-          className="space-y-4 mt-16"
+          className="mt-10 space-y-4 sm:mt-16"
         >
-          <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
             <div className="min-w-0">
               <h3
                 id="player-analysis-heading"
-                className="text-[44px] font-bold text-black"
+                className="text-3xl font-bold text-black sm:text-[44px]"
               >
                 Radar de props de jogadores
               </h3>
-              <p className="mt-2 w-3/4 text-black/50">
+              <p className="mt-2 w-full text-sm text-black/50 sm:w-3/4 sm:text-base">
                 Projeções próprias a partir de logs e minutos. O radar organiza
                 sinais para validação; ainda não são recomendações finais.
               </p>

@@ -20,7 +20,7 @@ export function GameAgendaCarousel({ games, message }: { games: Game[]; message?
           >
             <div className="flex shrink-0 gap-4 pr-4">
               {games.map(game => (
-                <div className="w-[min(88vw,32rem)] shrink-0" key={game.id}>
+                <div className="w-[min(88vw,32rem)] shrink-0 snap-start" key={game.id}>
                   <GameCard game={game} />
                 </div>
               ))}
@@ -28,7 +28,7 @@ export function GameAgendaCarousel({ games, message }: { games: Game[]; message?
             {canLoop && (
               <div className="flex shrink-0 gap-4 pr-4" aria-hidden="true">
                 {games.map(game => (
-                  <div className="w-[min(88vw,32rem)] shrink-0" key={`copy-${game.id}`}>
+                  <div className="w-[min(88vw,32rem)] shrink-0 snap-start" key={`copy-${game.id}`}>
                     <GameCard game={game} />
                   </div>
                 ))}

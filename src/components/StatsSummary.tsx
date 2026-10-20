@@ -73,7 +73,7 @@ export function StatsSummary({
         </h2>
       </div>
 
-      <div className="mt-4 flex items-center w-fit max-w-full gap-5 text-white ">
+      <div className="mt-4 flex w-fit max-w-full flex-col items-start gap-3 text-white sm:flex-row sm:gap-5">
         <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#58A9E3]/60 bg-[#006BB6]/60">
             <Clock3
@@ -127,17 +127,17 @@ export function StatsSummary({
 
       <a
         href="#daily-tickets"
-        className="inline-flex w-fit mt-10 shrink-0 items-center gap-3 rounded-full border border-white/55 bg-white text-[#005A9C] px-10 py-3 text-xs font-semibold  transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:text-sm"
+        className="mt-6 inline-flex w-fit max-w-full shrink-0 items-center gap-3 rounded-full border border-white/55 bg-white px-5 py-3 text-xs font-semibold text-[#005A9C] transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:mt-10 sm:px-10 sm:text-sm"
       >
         Bilhetes do dia
         <Ticket aria-hidden="true" className="h-4 w-4 mt-px" />
       </a>
 
-      <div className="mt-16 grid grid-cols-3 gap-1 sm:gap-2">
+      <div className="mt-9 grid grid-cols-3 gap-2 sm:mt-16 sm:gap-2">
         {stats.map((stat) => (
           <article
             key={stat.label}
-            className="min-w-0 rounded-xl relative border border-[#58A9E3]/60 bg-[#005A9C]/55 px-5 pt-12 pb-5 text-white shadow-sm sm:px-4"
+            className="relative min-w-0 rounded-xl border border-[#58A9E3]/60 bg-[#005A9C]/55 px-2 pb-3 pt-9 text-white shadow-sm sm:px-4 sm:pb-5 sm:pt-12"
           >
             <div className="absolute -top-7 h-[52px] w-[52px] overflow-hidden rounded-full border border-[#58A9E3]/60 bg-[#005A9C]">
               <img
@@ -148,10 +148,10 @@ export function StatsSummary({
                 className="h-full w-full rounded-full object-cover"
               />
             </div>
-            <span className="font-mono text-xl tabular-nums sm:text-5xl">
+              <span className="font-mono text-lg tabular-nums sm:text-5xl">
               {stat.value}
             </span>
-            <p className="mt-2 truncate text-[10px] font-semibold text-white/90 sm:text-xs">
+            <p className="mt-2 line-clamp-2 min-h-7 text-[9px] font-semibold leading-3 text-white/90 sm:min-h-0 sm:truncate sm:text-xs sm:leading-normal">
               {stat.label}
             </p>
             <p className="text-[9px] text-white/75 sm:text-[10px]">

@@ -16,7 +16,27 @@ export function GameTable({ games }: { games: Game[] }) {
         <span className="text-xs font-semibold text-slate-500">{games.length} {games.length === 1 ? "jogo" : "jogos"}</span>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-[#D5E6F2] bg-white shadow-sm">
+      <div className="space-y-3 sm:hidden">
+        {games.map((game) => {
+          const localDate = formatAppDateTime(game.commence_time).split(" ")[0].split("/").reverse().join("-");
+          return (
+            <article key={`mobile-${game.id}`} className="rounded-xl border border-[#D5E6F2] bg-white p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#12334A]">
+                  <TeamLogo team={game.away_team.abbreviation} size="sm" />
+                  <span className="truncate">{game.away_team.abbreviation}</span>
+                  <span className="shrink-0 text-xs text-slate-400">@</span>
+                  <TeamLogo team={game.home_team.abbreviation} size="sm" />
+                  <span className="truncate">{game.home_team.abbreviation}</span>
+                </div>
+                <Link href={`/jogos/${encodeURIComponent(game.id)}?date=${localDate}`} className="shrink-0 rounded-full bg-[#EAF5FC] px-3 py-2 text-xs font-bold text-[#005A9C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005A9C]">Ver props</Link>
+              </div>
+              <p className="mt-2 text-xs tabular-nums text-slate-600">{formatAppDateTime(game.commence_time)}</p>
+            </article>
+          );
+        })}
+      </div>
+      <div className="hidden overflow-hidden rounded-2xl border border-[#D5E6F2] bg-white shadow-sm sm:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[540px] text-left">
             <thead className="bg-[#EAF5FC] text-xs font-bold uppercase tracking-wide text-[#31566F]">

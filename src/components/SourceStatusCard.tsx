@@ -48,7 +48,7 @@ export function SourceStatusCard({ sources, creditUsage, staticMode = false }: S
         <p className="mt-1.5 text-[11px] text-white/65">{staticMode ? 'Sem consultas durante o modo visual' : `${creditUsage.remaining} restantes este mês`}</p>
       </div>
 
-      <div className="mt-10 grid grid-cols-3 gap-1 sm:gap-2">
+      <div className="mt-8 grid grid-cols-3 gap-2 sm:mt-10 sm:gap-2">
         {sources.map((source, index) => {
           const config = statusConfig[source.status];
           return (
@@ -56,7 +56,7 @@ export function SourceStatusCard({ sources, creditUsage, staticMode = false }: S
               key={source.name}
               title={source.message || config.text}
               aria-label={`${source.name}: ${config.text}`}
-              className="min-w-0 rounded-xl relative border border-[#ff7896]/60 bg-[#c91540]/55 px-2 pt-12 pb-5 text-white shadow-sm sm:px-4"
+              className="relative min-w-0 rounded-xl border border-[#ff7896]/60 bg-[#c91540]/55 px-1.5 pb-3 pt-9 text-white shadow-sm sm:px-4 sm:pb-5 sm:pt-12"
             >
               <div className="absolute -top-7 h-[52px] w-[52px] overflow-hidden rounded-full border border-[#ff7896]/60 bg-[#c91540]">
                 <img
@@ -69,7 +69,7 @@ export function SourceStatusCard({ sources, creditUsage, staticMode = false }: S
                 />
                 <span aria-hidden="true" className={`absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border border-white/80 ${config.color}`} />
               </div>
-              <span className="font-mono text-xl font-bold tabular-nums sm:text-5xl">
+              <span className="font-mono text-base font-bold tabular-nums sm:text-5xl">
                 {config.value}
               </span>
               <p className="mt-2 truncate text-[10px] font-semibold text-white/90 sm:text-xs">
