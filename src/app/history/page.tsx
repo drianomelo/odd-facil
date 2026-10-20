@@ -4,9 +4,7 @@ import { HistoryContent } from './HistoryContent';
 export const dynamic = 'force-dynamic';
 
 export default function HistoryPage({ searchParams }: { searchParams: { phase?: string } }) {
-  const initialPhase = searchParams.phase === 'regular' || searchParams.phase === 'preseason'
-    ? searchParams.phase
-    : 'all';
+  const initialPhase = 'regular';
   return (
     <main className="min-h-screen">
       <header className="sticky top-0 z-40 border-b border-court-border bg-court-card/95 backdrop-blur-sm">

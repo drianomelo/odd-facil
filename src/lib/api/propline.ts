@@ -8,6 +8,7 @@ import {
   isSyntheticPickemBook,
   resolvePlayerOpponent,
 } from '@/lib/analysis/player-props';
+import { getNbaSeasonPhase } from '@/lib/analysis/nba-season';
 
 const BASE_URL = 'https://api.prop-line.com/v1/sports/basketball_nba';
 const MARKETS: PlayerPropMarket[] = [
@@ -205,7 +206,8 @@ export async function getDailyPlayerAnalysis(from: Date, to: Date): Promise<{
     getJson(makeOddsPath(), 900),
     getNbaInjuryReport(),
   ]);
-  const eventCandidates = candidatesFromEvents(records(body), from, to);
+  const eventCandidates = candidatesFromEvents(records(body), from, to)
+    .filter(candidate => getNbaSeasonPhase(String(candidate.event.commence_time)) === 'regular');
   const candidatesByPlayer = new Map<string, typeof eventCandidates>();
   for (const candidate of eventCandidates) {
     const list = candidatesByPlayer.get(candidate.player) || [];

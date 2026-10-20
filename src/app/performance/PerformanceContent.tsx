@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { PlayerPropMarket } from '@/lib/analysis/player-props';
+import { getNbaSeasonPhase } from '@/lib/analysis/nba-season';
 
 type MarketPerformance = {
   market: PlayerPropMarket;
@@ -115,7 +116,7 @@ export function PerformanceContent() {
             Consulte separadamente os resultados gerais das previsões e o desempenho dos bilhetes que você salvou como apostas.
           </p>
         </div>
-        <Link href={activeTab === 'model' ? '/history?phase=regular' : '/history'} className="text-sm font-medium text-court-accent underline-offset-4 hover:underline">{activeTab === 'model' ? 'Ver previsões registradas' : 'Gerenciar apostas no Histórico'}</Link>
+        <div className="flex flex-wrap items-center gap-4"><Link href="/times" className="btn-secondary px-3 py-2 text-sm">Desempenho por time</Link><Link href={activeTab === 'model' ? '/history?phase=regular' : '/history'} className="text-sm font-medium text-court-accent underline-offset-4 hover:underline">{activeTab === 'model' ? 'Ver previsões registradas' : 'Gerenciar apostas no Histórico'}</Link></div>
       </div>
 
       <div className="flex gap-2 border-b border-court-border" role="tablist" aria-label="Desempenho por origem">
@@ -169,6 +170,15 @@ export function PerformanceContent() {
                 As previsões da pré-temporada permanecem identificadas separadamente no <Link className="text-court-accent underline underline-offset-4" href="/history?phase=preseason">histórico de pré-temporada</Link>. Elas não entram nesta avaliação da temporada regular.
               </p>
             )}
+          </section>
+
+          <section aria-labelledby="results-chart-title" className="space-y-3">
+            <div><h2 id="results-chart-title" className="text-lg font-semibold text-court-text">Gráfico de resultados por mercado</h2><p className="mt-1 text-sm text-court-textMuted">Cada barra mostra a proporção de acertos, erros, pushes/anuladas e previsões pendentes.</p></div>
+            <div className="space-y-4 rounded-xl border border-court-border p-4">{data.byMarket.map(row => {
+              const total = row.totalForecasts || 1;
+              const parts = [{ label: 'Acertos', value: row.wins, style: 'bg-court-success' }, { label: 'Erros', value: row.losses, style: 'bg-court-danger' }, { label: 'Pushes', value: row.pushes, style: 'bg-court-accent' }, { label: 'Pendentes', value: row.pending, style: 'bg-court-border' }];
+              return <div key={row.market}><div className="mb-1 flex justify-between gap-3 text-xs"><span className="font-medium text-court-text">{MARKET_LABELS[row.market]}</span><span className="text-court-textMuted">{row.totalForecasts} previsões</span></div><div className="flex h-3 overflow-hidden rounded-full bg-court-border" role="img" aria-label={`${MARKET_LABELS[row.market]}: ${row.wins} acertos, ${row.losses} erros, ${row.pending} pendentes`}>{parts.filter(part => part.value > 0).map(part => <span key={part.label} className={part.style} title={`${part.label}: ${part.value}`} style={{ width: `${part.value / total * 100}%` }} />)}</div><div className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-court-textMuted">{parts.map(part => <span key={part.label}>{part.label} {part.value}</span>)}</div></div>;
+            })}{data.byMarket.every(row => row.totalForecasts === 0) && <p className="text-sm text-court-textMuted">O gráfico será preenchido quando houver previsões registradas.</p>}</div>
           </section>
 
           <section aria-labelledby="markets-title" className="space-y-3">
@@ -280,7 +290,7 @@ type PersonalTicket = {
   createdAt: string;
   outcome: 'pending' | 'won' | 'lost' | 'push/void';
   outcomeSource: 'manual' | 'forecast';
-  legs: Array<{ player: string; playerTeam?: string | null }>;
+  legs: Array<{ player: string; playerTeam?: string | null; commenceTime?: string | Date | null }>;
 };
 
 const TICKET_OUTCOME_LABELS: Record<PersonalTicket['outcome'], string> = {
@@ -316,7 +326,7 @@ function SavedTicketPerformance() {
       .then(async response => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || 'Não foi possível carregar os bilhetes salvos.');
-        if (active) setTickets(body.tickets as PersonalTicket[]);
+        if (active) setTickets((body.tickets as PersonalTicket[]).filter(ticket => ticket.legs.length > 0 && ticket.legs.every(leg => leg.commenceTime && getNbaSeasonPhase(leg.commenceTime) === 'regular')));
       })
       .catch(loadError => { if (active) setError(loadError instanceof Error ? loadError.message : 'Falha ao carregar os bilhetes.'); })
       .finally(() => { if (active) setLoading(false); });
@@ -339,6 +349,7 @@ function SavedTicketPerformance() {
   const wins = filteredTickets.filter(ticket => ticket.outcome === 'won').length;
   const losses = filteredTickets.filter(ticket => ticket.outcome === 'lost').length;
   const pending = filteredTickets.filter(ticket => ticket.outcome === 'pending').length;
+  const returnedTickets = filteredTickets.filter(ticket => ticket.outcome === 'push/void').length;
   const unknownReturns = settled.length - withKnownReturn.length;
 
   return (
@@ -360,6 +371,7 @@ function SavedTicketPerformance() {
         <Metric label="Retorno apurado" value={currency(returned)} detail={`${withKnownReturn.length} resultados com retorno calculável`} />
         <Metric label="Lucro / prejuízo" value={withKnownReturn.length ? currency(profit) : '—'} detail={settledStake ? `ROI ${((profit / settledStake) * 100).toFixed(1)}%` : 'Aguardando apurações'} />
       </dl>
+      <section aria-label="Gráfico de resultados dos bilhetes pessoais" className="rounded-xl border border-court-border p-4"><div className="flex justify-between gap-3"><h3 className="text-sm font-semibold text-court-text">Resultados dos meus bilhetes</h3><span className="text-xs text-court-textMuted">{filteredTickets.length} bilhetes</span></div><div className="mt-3 flex h-4 overflow-hidden rounded-full bg-court-border" role="img" aria-label={`${wins} ganhos, ${losses} perdidos, ${returnedTickets} devolvidos ou anulados, ${pending} pendentes`}>{[{ value: wins, color: 'bg-court-success' }, { value: losses, color: 'bg-court-danger' }, { value: returnedTickets, color: 'bg-court-accent' }, { value: pending, color: 'bg-court-border' }].filter(item => item.value > 0).map((item, index) => <span key={index} className={item.color} style={{ width: `${item.value / Math.max(filteredTickets.length, 1) * 100}%` }} />)}</div><div className="mt-2 flex flex-wrap gap-x-4 text-xs text-court-textMuted"><span>Ganhos {wins}</span><span>Perdidos {losses}</span><span>Devolvidos/anulados {returnedTickets}</span><span>Pendentes {pending}</span></div></section>
       {unknownReturns > 0 && <p className="text-xs leading-5 text-court-textMuted">{unknownReturns} bilhete(s) apurado(s) sem odd combinada ou retorno real informado não entram no cálculo financeiro. Você pode completar os dados no <Link href="/history" className="text-court-accent underline underline-offset-4">Histórico</Link>.</p>}
       <div className="space-y-2">
         {filteredTickets.slice(0, 10).map(ticket => (

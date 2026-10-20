@@ -1,6 +1,7 @@
 import { PlayerPropCandidate } from '@/lib/analysis/player-props';
 import { playerPropForecasts } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
+import { getNbaSeasonPhase } from '@/lib/analysis/nba-season';
 
 export const PLAYER_PROP_MODEL_VERSION = 'player-props-v0.5.0';
 
@@ -11,7 +12,7 @@ export async function storeUpcomingPlayerPropForecasts(candidates: PlayerPropCan
   const rows = candidates.flatMap((candidate) => {
     const commenceTime = new Date(candidate.commenceTime);
     const side = candidate.recommendationSide;
-    if (!side || !Number.isFinite(commenceTime.getTime()) || commenceTime.getTime() <= now) return [];
+    if (!side || !Number.isFinite(commenceTime.getTime()) || commenceTime.getTime() <= now || getNbaSeasonPhase(commenceTime) !== 'regular') return [];
 
     const isOver = side === 'Over';
     const quote = isOver ? candidate.bestOver : candidate.bestUnder;

@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
     const market = params.get('market');
     const team = params.get('team');
     const player = params.get('player');
-    const rawPhase = params.get('phase') || 'all';
+    const rawPhase = 'regular';
+    const regularSeasonFilter = sql`(${playerPropForecasts.commence_time} at time zone 'America/New_York')::date >= ${NBA_REGULAR_SEASON_START}::date`;
     const from = parseDateBoundary(params.get('from'));
     const through = parseDateBoundary(params.get('to'), true);
     const limit = Math.min(100, Math.max(1, Number.parseInt(params.get('limit') || '30', 10) || 30));
@@ -58,9 +59,6 @@ export async function GET(request: NextRequest) {
     }
     if (market && !MARKETS.includes(market as PlayerPropMarket)) {
       return NextResponse.json({ error: 'Filtro de mercado inválido.' }, { status: 400 });
-    }
-    if (!['all', 'preseason', 'regular'].includes(rawPhase)) {
-      return NextResponse.json({ error: 'Filtro de fase inválido.' }, { status: 400 });
     }
     if (params.has('from') && !from) return NextResponse.json({ error: 'Data inicial inválida.' }, { status: 400 });
     if (params.has('to') && !through) return NextResponse.json({ error: 'Data final inválida.' }, { status: 400 });
@@ -74,10 +72,9 @@ export async function GET(request: NextRequest) {
     if (market) filters.push(eq(playerPropForecasts.market, market as PlayerPropMarket));
     if (team) filters.push(eq(playerPropForecasts.player_team, team));
     if (player) filters.push(eq(playerPropForecasts.player_name, player));
-    if (rawPhase === 'preseason') filters.push(sql`(${playerPropForecasts.commence_time} at time zone 'America/New_York')::date < ${NBA_REGULAR_SEASON_START}::date`);
-    if (rawPhase === 'regular') filters.push(sql`(${playerPropForecasts.commence_time} at time zone 'America/New_York')::date >= ${NBA_REGULAR_SEASON_START}::date`);
     if (from) filters.push(gte(playerPropForecasts.commence_time, from));
     if (through) filters.push(lte(playerPropForecasts.commence_time, through));
+    filters.push(regularSeasonFilter);
     const where = and(...filters);
 
     const [rows, [filteredCount], [summary], playerTeamFacets] = await Promise.all([
@@ -187,3 +184,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Não foi possível carregar o histórico de previsões.' }, { status: 500 });
   }
 }
+
