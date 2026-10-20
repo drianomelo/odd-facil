@@ -4,6 +4,7 @@ import { formatAppDateTime, formatAppTime } from "@/lib/utils/date";
 import { Game, MarketOdds } from "@/types";
 import { StatusLabel } from "@/lib/utils/labels";
 import { getNbaTeamInfo, TeamLogo } from "@/components/TeamLogo";
+import Link from "next/link";
 
 interface GameCardProps {
   game: Game;
@@ -21,8 +22,10 @@ export function GameCard({ game }: GameCardProps) {
   const homeColor = homeInfo?.color || "#ED174B";
 
   return (
-    <article
-      className="relative isolate min-w-0 overflow-hidden rounded-2xl border border-[#D5E6F2] bg-white px-4 pb-5 pt-4 shadow-sm transition-all hover:border-[#9BC7E3] hover:shadow-md sm:px-6"
+    <Link
+      href={`/jogos/${encodeURIComponent(game.id)}?date=${formatAppDateTime(game.commence_time).split(" ")[0].split("/").reverse().join("-")}`}
+      aria-label={`Ver melhores odds para ${game.away_team.name} contra ${game.home_team.name}`}
+      className="relative isolate block min-w-0 overflow-hidden rounded-2xl border border-[#D5E6F2] bg-white px-4 pb-5 pt-4 shadow-sm transition-all hover:border-[#9BC7E3] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005A9C] sm:px-6"
       style={{
         background: `linear-gradient(112deg, ${awayColor}12 0%, #ffffff 43%, #ffffff 57%, ${homeColor}12 100%)`,
       }}
@@ -88,7 +91,7 @@ export function GameCard({ game }: GameCardProps) {
           faded={isFinished}
         />
       </div>
-    </article>
+    </Link>
   );
 }
 
