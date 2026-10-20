@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes loading-bar {
+  0% { transform: translateX(-110%); }
+  55% { transform: translateX(210%); }
+  100% { transform: translateX(340%); }
+}
+
 @layer base {
   :root {
     --font-urbanist: 'Urbanist', system-ui, sans-serif;
