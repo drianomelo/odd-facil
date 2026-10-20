@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { NextRequest, NextResponse } from 'next/server';
+import { and, count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { playerPropForecasts } from '@/lib/db/schema';
 import { PlayerPropMarket } from '@/lib/analysis/player-props';
@@ -18,10 +18,16 @@ function gameFromDetails(details: unknown): string | null {
   return typeof game === 'string' && game.trim() ? game : null;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const team = request.nextUrl.searchParams.get('team');
+    const player = request.nextUrl.searchParams.get('player');
     const regularSeasonOnly = sql`(${playerPropForecasts.commence_time} at time zone 'America/New_York')::date >= ${NBA_REGULAR_SEASON_START}::date`;
-    const [[row], recentRows] = await Promise.all([db.select({
+    const filters = [eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION), regularSeasonOnly];
+    if (team) filters.push(eq(playerPropForecasts.player_team, team));
+    if (player) filters.push(eq(playerPropForecasts.player_name, player));
+    const where = and(...filters);
+    const [[row], recentRows, playerTeamFacets] = await Promise.all([db.select({
       total: count(),
       pending: sql<number>`count(*) filter (where ${playerPropForecasts.result} is null)`,
       settled: sql<number>`count(*) filter (where ${playerPropForecasts.result} in ('won', 'lost', 'push', 'void'))`,
@@ -37,13 +43,11 @@ export async function GET() {
         when ${playerPropForecasts.result} = 'won' and ${playerPropForecasts.american_odds} < 0 then 100::numeric / abs(${playerPropForecasts.american_odds})
         when ${playerPropForecasts.result} = 'lost' and ${playerPropForecasts.american_odds} is not null then -1
         else 0 end), 0)`,
-    }).from(playerPropForecasts).where(and(
-      eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION),
-      regularSeasonOnly,
-    )), db.select({
+    }).from(playerPropForecasts).where(where), db.select({
       id: playerPropForecasts.id,
       eventId: playerPropForecasts.event_id,
       player: playerPropForecasts.player_name,
+      playerTeam: playerPropForecasts.player_team,
       market: playerPropForecasts.market,
       line: playerPropForecasts.line,
       selection: playerPropForecasts.selection,
@@ -57,10 +61,13 @@ export async function GET() {
       gradedAt: playerPropForecasts.graded_at,
       details: playerPropForecasts.details,
     }).from(playerPropForecasts).where(and(
-      eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION),
-      regularSeasonOnly,
+      where,
       inArray(playerPropForecasts.result, ['won', 'lost', 'push', 'void']),
-    )).orderBy(desc(playerPropForecasts.graded_at), desc(playerPropForecasts.commence_time)).limit(50)]);
+    )).orderBy(desc(playerPropForecasts.graded_at), desc(playerPropForecasts.commence_time)).limit(50),
+    db.selectDistinct({ team: playerPropForecasts.player_team, player: playerPropForecasts.player_name })
+      .from(playerPropForecasts)
+      .where(and(eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION), regularSeasonOnly, isNotNull(playerPropForecasts.player_team)))
+    ]);
 
     const marketRows = await db.select({
       market: playerPropForecasts.market,
@@ -73,10 +80,7 @@ export async function GET() {
       meanAbsoluteError: sql<number>`avg(abs(${playerPropForecasts.actual_value} - ${playerPropForecasts.projection})) filter (where ${playerPropForecasts.actual_value} is not null)`,
       brierScore: sql<number>`avg(power(${playerPropForecasts.predicted_probability} - case when ${playerPropForecasts.result} = 'won' then 1 else 0 end, 2)) filter (where ${playerPropForecasts.result} in ('won', 'lost'))`,
     }).from(playerPropForecasts)
-      .where(and(
-        eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION),
-        regularSeasonOnly,
-      ))
+      .where(where)
       .groupBy(playerPropForecasts.market);
 
     const settled = Number(row?.settled || 0);
@@ -86,6 +90,8 @@ export async function GET() {
     return NextResponse.json({
       totalForecasts: Number(row?.total || 0),
       modelVersion: PLAYER_PROP_MODEL_VERSION,
+      filters: { team: team || 'all', player: player || 'all' },
+      playerTeamFacets: playerTeamFacets.filter(item => item.team),
       seasonPhase: 'regular',
       pending: Number(row?.pending || 0),
       settled,

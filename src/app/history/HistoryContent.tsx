@@ -8,11 +8,12 @@ import { getTicketOutcome } from '@/lib/analysis/ticket-result';
 
 type ForecastResult = 'pending' | 'won' | 'lost' | 'push' | 'void';
 type SeasonPhase = 'preseason' | 'regular';
-type HistoryFilters = { result: string; market: string; phase: string; from: string; to: string };
+type HistoryFilters = { result: string; market: string; phase: string; team: string; player: string; from: string; to: string };
 type Forecast = {
   id: string;
   eventId: string;
   player: string;
+  playerTeam?: string | null;
   market: PlayerPropMarket;
   line: number;
   selection: 'Over' | 'Under';
@@ -39,15 +40,16 @@ type Forecast = {
     oddsChanged?: boolean | null;
   };
 };
-type SavedTicketLeg = { position: number; player: string; market: PlayerPropMarket; line: number; selection: 'Over' | 'Under'; americanOdds: number; bookmaker: string; result: ForecastResult; actualValue: number | null; commenceTime: string | null };
+type SavedTicketLeg = { position: number; player: string; playerTeam?: string | null; market: PlayerPropMarket; line: number; selection: 'Over' | 'Under'; americanOdds: number; bookmaker: string; result: ForecastResult; actualValue: number | null; commenceTime: string | null };
 type SavedTicket = { id: string; label: string; bookmaker: string; combinedDecimalOdds: number | null; combinedAmericanOdds: number | null; stakeAmount: number; potentialReturn: number | null; actualReturn: number | null; manualOutcome: 'won' | 'lost' | 'push/void' | null; outcomeSource: 'manual' | 'forecast'; createdAt: string; outcome: 'pending' | 'won' | 'lost' | 'push/void'; legs: SavedTicketLeg[] };
 type HistoryResponse = {
   page: { limit: number; offset: number; total: number };
   summary: { total: number; pending: number; won: number; lost: number; push: number; void: number; preseason: number; regular: number };
   forecasts: Forecast[];
+  playerTeamFacets: Array<{ team: string; player: string }>;
 };
 
-const DEFAULT_FILTERS: HistoryFilters = { result: 'all', market: 'all', phase: 'all', from: '', to: '' };
+const DEFAULT_FILTERS: HistoryFilters = { result: 'all', market: 'all', phase: 'all', team: 'all', player: 'all', from: '', to: '' };
 
 const MARKET_LABELS: Record<PlayerPropMarket, string> = {
   player_points: 'Pontos',
@@ -87,6 +89,8 @@ function buildQuery(filters: HistoryFilters, offset = 0): string {
   if (filters.result !== 'all') params.set('result', filters.result);
   if (filters.market !== 'all') params.set('market', filters.market);
   if (filters.phase !== 'all') params.set('phase', filters.phase);
+  if (filters.team !== 'all') params.set('team', filters.team);
+  if (filters.player !== 'all') params.set('player', filters.player);
   if (filters.from) params.set('from', filters.from);
   if (filters.to) params.set('to', filters.to);
   return params.toString();
@@ -137,6 +141,9 @@ export function HistoryContent({ initialPhase = 'all' }: { initialPhase?: string
   }
 
   const summary = data?.summary;
+  const playerOptions = Array.from(new Set((data?.playerTeamFacets || [])
+    .filter(item => draftFilters.team === 'all' || item.team === draftFilters.team)
+    .map(item => item.player))).sort((a, b) => a.localeCompare(b));
 
   return (
     <section className="space-y-6" aria-labelledby="history-title">
@@ -172,7 +179,7 @@ export function HistoryContent({ initialPhase = 'all' }: { initialPhase?: string
         </div>
       )}
 
-      <form onSubmit={applyFilters} className="grid gap-3 rounded-xl border border-court-border bg-court-card p-4 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
+      <form onSubmit={applyFilters} className="grid gap-3 rounded-xl border border-court-border bg-court-card p-4 sm:grid-cols-2 lg:grid-cols-8 lg:items-end">
         <label className="flex flex-col gap-1.5 text-xs font-medium text-court-textMuted">
           Resultado
           <select className="input py-2 text-sm" value={draftFilters.result} onChange={event => setDraftFilters(current => ({ ...current, result: event.target.value }))}>
@@ -193,6 +200,20 @@ export function HistoryContent({ initialPhase = 'all' }: { initialPhase?: string
           </select>
         </label>
         <label className="flex flex-col gap-1.5 text-xs font-medium text-court-textMuted">
+          Time do jogador
+          <select className="input py-2 text-sm" value={draftFilters.team} onChange={event => setDraftFilters(current => ({ ...current, team: event.target.value, player: 'all' }))}>
+            <option value="all">Todos os times</option>
+            {Array.from(new Set((data?.playerTeamFacets || []).map(item => item.team))).sort((a, b) => a.localeCompare(b)).map(team => <option key={team} value={team}>{team}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-court-textMuted">
+          Jogador
+          <select className="input py-2 text-sm" value={draftFilters.player} onChange={event => setDraftFilters(current => ({ ...current, player: event.target.value }))}>
+            <option value="all">Todos os jogadores</option>
+            {playerOptions.map(player => <option key={player} value={player}>{player}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-court-textMuted">
           De
           <input className="input py-2 text-sm" type="date" value={draftFilters.from} onChange={event => setDraftFilters(current => ({ ...current, from: event.target.value }))} />
         </label>
@@ -205,6 +226,7 @@ export function HistoryContent({ initialPhase = 'all' }: { initialPhase?: string
           <button type="button" onClick={clearFilters} className="btn-ghost px-3 py-2 text-sm" aria-label="Limpar filtros" title="Limpar filtros"><RotateCcw aria-hidden="true" className="h-4 w-4" /></button>
         </div>
       </form>
+      {data && !data.playerTeamFacets.length && <p className="text-xs leading-5 text-court-textMuted">Os próximos palpites já serão registrados com o time do jogador. Previsões antigas não têm esse dado salvo e não podem ser classificadas por time.</p>}
 
       <div className="flex items-center justify-between text-sm text-court-textMuted" aria-live="polite">
         <span>{data ? `${data.page.total} resultados` : ' '}</span>
@@ -241,6 +263,7 @@ export function HistoryContent({ initialPhase = 'all' }: { initialPhase?: string
               <div className="min-w-0">
                 <p className="text-xs text-court-textMuted sm:hidden">Jogador / mercado</p>
                 <p className="truncate font-medium text-court-text">{forecast.player}</p>
+                {forecast.playerTeam && <p className="text-[11px] text-court-textMuted">{forecast.playerTeam}</p>}
                 <p className="mt-1 truncate text-xs text-court-textMuted">{MARKET_LABELS[forecast.market]}</p>
               </div>
 
@@ -312,11 +335,19 @@ function SavedTickets() {
   const [updatingStake, setUpdatingStake] = useState<string | null>(null);
   const [stakeFeedback, setStakeFeedback] = useState<{ id: string; text: string; error?: boolean } | null>(null);
   const [period, setPeriod] = useState({ from: '', to: '' });
+  const [ticketFilters, setTicketFilters] = useState({ team: 'all', player: 'all' });
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const ticketTeams = Array.from(new Set(tickets.flatMap(ticket => ticket.legs.map(leg => leg.playerTeam).filter((team): team is string => !!team)))).sort((a, b) => a.localeCompare(b));
+  const ticketPlayers = Array.from(new Set(tickets.flatMap(ticket => ticket.legs
+    .filter(leg => ticketFilters.team === 'all' || leg.playerTeam === ticketFilters.team)
+    .map(leg => leg.player)))).sort((a, b) => a.localeCompare(b));
   const ticketsInPeriod = tickets.filter(ticket => {
     const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bahia', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ticket.createdAt));
-    return (!period.from || date >= period.from) && (!period.to || date <= period.to);
+    const inPeriod = (!period.from || date >= period.from) && (!period.to || date <= period.to);
+    const matchingLegs = ticket.legs.filter(leg => (ticketFilters.team === 'all' || leg.playerTeam === ticketFilters.team)
+      && (ticketFilters.player === 'all' || leg.player === ticketFilters.player));
+    return inPeriod && (ticketFilters.team === 'all' && ticketFilters.player === 'all' || matchingLegs.length > 0);
   });
   const totalStaked = ticketsInPeriod.reduce((total, ticket) => total + ticket.stakeAmount, 0);
   const getSettledReturn = (ticket: SavedTicket): number | null => {
@@ -420,11 +451,14 @@ function SavedTickets() {
       </div>
       {error && <p role="alert" className="rounded-lg border border-court-danger/40 p-3 text-sm text-court-danger">{error}</p>}
       {deleteError && <p role="alert" className="rounded-lg border border-court-danger/40 p-3 text-sm text-court-danger">{deleteError}</p>}
-      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <label className="text-xs text-court-textMuted">De<input type="date" value={period.from} onChange={event => setPeriod(current => ({ ...current, from: event.target.value }))} className="input mt-1 py-2 text-sm" /></label>
         <label className="text-xs text-court-textMuted">Até<input type="date" value={period.to} onChange={event => setPeriod(current => ({ ...current, to: event.target.value }))} className="input mt-1 py-2 text-sm" /></label>
-        <button type="button" onClick={() => setPeriod({ from: '', to: '' })} className="btn-ghost self-end px-3 py-2 text-sm">Todo o período</button>
+        <label className="text-xs text-court-textMuted">Time do jogador<select value={ticketFilters.team} onChange={event => setTicketFilters(current => ({ ...current, team: event.target.value, player: 'all' }))} className="input mt-1 py-2 text-sm"><option value="all">Todos os times</option>{ticketTeams.map(team => <option key={team} value={team}>{team}</option>)}</select></label>
+        <label className="text-xs text-court-textMuted">Jogador<select value={ticketFilters.player} onChange={event => setTicketFilters(current => ({ ...current, player: event.target.value }))} className="input mt-1 py-2 text-sm"><option value="all">Todos os jogadores</option>{ticketPlayers.map(player => <option key={player} value={player}>{player}</option>)}</select></label>
+        <button type="button" onClick={() => { setPeriod({ from: '', to: '' }); setTicketFilters({ team: 'all', player: 'all' }); }} className="btn-ghost self-end px-3 py-2 text-sm">Limpar filtros</button>
       </div>
+      {!ticketTeams.length && <p className="text-xs leading-5 text-court-textMuted">O time dos jogadores será salvo nos novos bilhetes. Bilhetes antigos não têm essa informação registrada.</p>}
       {ticketsInPeriod.length > 0 && <div className="grid gap-3 sm:grid-cols-3" aria-label="Resumo financeiro das apostas">
         <div className="rounded-lg border border-court-border p-3"><p className="text-xs text-court-textMuted">Total apostado</p><p className="mt-1 font-mono font-semibold text-court-text">{formatCurrency(totalStaked)}</p></div>
         <div className="rounded-lg border border-court-border p-3"><p className="text-xs text-court-textMuted">Retorno apurado</p><p className="mt-1 font-mono font-semibold text-court-text">{formatCurrency(settledReturn)}</p></div>
@@ -478,7 +512,7 @@ function SavedTickets() {
               {ticket.legs.map(leg => (
                 <li key={`${ticket.id}-${leg.position}`} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                   <div>
-                    <p className="font-medium text-court-text">{leg.player} · {MARKET_LABELS[leg.market]} {leg.selection === 'Over' ? 'Mais de' : 'Menos de'} {leg.line}</p>
+                    <p className="font-medium text-court-text">{leg.player}{leg.playerTeam ? ` · ${leg.playerTeam}` : ''} · {MARKET_LABELS[leg.market]} {leg.selection === 'Over' ? 'Mais de' : 'Menos de'} {leg.line}</p>
                     <p className="mt-1 text-xs text-court-textMuted">{formatOdds(leg.americanOdds)} @ {leg.bookmaker} · real {leg.actualValue === null ? 'aguardando' : leg.actualValue}</p>
                   </div>
                   <span className={`rounded px-2 py-1 text-xs font-semibold ${RESULT_STYLES[leg.result]}`}>{RESULT_LABELS[leg.result]}</span>

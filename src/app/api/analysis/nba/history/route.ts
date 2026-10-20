@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, count, desc, eq, gte, lte, SQL, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, isNotNull, lte, SQL, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { playerPropForecasts } from '@/lib/db/schema';
 import { PlayerPropMarket } from '@/lib/analysis/player-props';
@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
     const params = request.nextUrl.searchParams;
     const rawResult = params.get('result') || 'all';
     const market = params.get('market');
+    const team = params.get('team');
+    const player = params.get('player');
     const rawPhase = params.get('phase') || 'all';
     const from = parseDateBoundary(params.get('from'));
     const through = parseDateBoundary(params.get('to'), true);
@@ -70,17 +72,20 @@ export async function GET(request: NextRequest) {
     if (rawResult === 'pending') filters.push(sql`${playerPropForecasts.result} is null`);
     else if (rawResult !== 'all') filters.push(eq(playerPropForecasts.result, rawResult as HistoryResultFilter));
     if (market) filters.push(eq(playerPropForecasts.market, market as PlayerPropMarket));
+    if (team) filters.push(eq(playerPropForecasts.player_team, team));
+    if (player) filters.push(eq(playerPropForecasts.player_name, player));
     if (rawPhase === 'preseason') filters.push(sql`(${playerPropForecasts.commence_time} at time zone 'America/New_York')::date < ${NBA_REGULAR_SEASON_START}::date`);
     if (rawPhase === 'regular') filters.push(sql`(${playerPropForecasts.commence_time} at time zone 'America/New_York')::date >= ${NBA_REGULAR_SEASON_START}::date`);
     if (from) filters.push(gte(playerPropForecasts.commence_time, from));
     if (through) filters.push(lte(playerPropForecasts.commence_time, through));
     const where = and(...filters);
 
-    const [rows, [filteredCount], [summary]] = await Promise.all([
+    const [rows, [filteredCount], [summary], playerTeamFacets] = await Promise.all([
       db.select({
         id: playerPropForecasts.id,
         eventId: playerPropForecasts.event_id,
         player: playerPropForecasts.player_name,
+        playerTeam: playerPropForecasts.player_team,
         market: playerPropForecasts.market,
         line: playerPropForecasts.line,
         selection: playerPropForecasts.selection,
@@ -112,7 +117,10 @@ export async function GET(request: NextRequest) {
         void: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'void')`,
         preseason: sql<number>`count(*) filter (where (${playerPropForecasts.commence_time} at time zone 'America/New_York')::date < ${NBA_REGULAR_SEASON_START}::date)`,
         regular: sql<number>`count(*) filter (where (${playerPropForecasts.commence_time} at time zone 'America/New_York')::date >= ${NBA_REGULAR_SEASON_START}::date)`,
-      }).from(playerPropForecasts).where(eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION)),
+      }).from(playerPropForecasts).where(where),
+      db.selectDistinct({ team: playerPropForecasts.player_team, player: playerPropForecasts.player_name })
+        .from(playerPropForecasts)
+        .where(and(eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION), isNotNull(playerPropForecasts.player_team))),
     ]);
 
     let currentMarkets: Awaited<ReturnType<typeof getCurrentPlayerPropMarkets>> = [];
@@ -124,7 +132,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       modelVersion: PLAYER_PROP_MODEL_VERSION,
-      filters: { result: rawResult, market: market || 'all', phase: rawPhase, from: params.get('from'), to: params.get('to') },
+      filters: { result: rawResult, market: market || 'all', phase: rawPhase, team: team || 'all', player: player || 'all', from: params.get('from'), to: params.get('to') },
+      playerTeamFacets: playerTeamFacets.filter(item => item.team),
       page: { limit, offset, total: Number(filteredCount?.total || 0) },
       summary: Object.fromEntries(Object.entries(summary || {}).map(([key, value]) => [key, Number(value || 0)])),
       forecasts: rows.map(row => ({

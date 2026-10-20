@@ -22,6 +22,7 @@ export async function storeUpcomingPlayerPropForecasts(candidates: PlayerPropCan
     return [{
       event_id: candidate.gameId,
       player_name: candidate.player,
+      player_team: candidate.team ?? null,
       market: candidate.market,
       line: String(candidate.line),
       model_version: PLAYER_PROP_MODEL_VERSION,

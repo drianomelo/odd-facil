@@ -20,6 +20,7 @@ type MarketPerformance = {
 type SettledForecast = {
   id: string;
   player: string;
+  playerTeam?: string | null;
   market: PlayerPropMarket;
   line: number;
   selection: 'Over' | 'Under';
@@ -51,6 +52,7 @@ type Performance = {
   recentSettled: SettledForecast[];
   byMarket: MarketPerformance[];
   message?: string;
+  playerTeamFacets: Array<{ team: string; player: string }>;
 };
 
 const MARKET_LABELS: Record<PlayerPropMarket, string> = {
@@ -77,12 +79,17 @@ export function PerformanceContent() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'model' | 'tickets'>('model');
+  const [teamFilter, setTeamFilter] = useState('all');
+  const [playerFilter, setPlayerFilter] = useState('all');
 
-  async function load() {
+  async function load(team = teamFilter, player = playerFilter) {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/analysis/nba/performance', { cache: 'no-store' });
+      const params = new URLSearchParams();
+      if (team !== 'all') params.set('team', team);
+      if (player !== 'all') params.set('player', player);
+      const response = await fetch(`/api/analysis/nba/performance?${params}`, { cache: 'no-store' });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Não foi possível carregar o desempenho.');
       setData(body as Performance);
@@ -93,7 +100,11 @@ export function PerformanceContent() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(teamFilter, playerFilter); }, [teamFilter, playerFilter]);
+
+  const playerOptions = Array.from(new Set((data?.playerTeamFacets || [])
+    .filter(item => teamFilter === 'all' || item.team === teamFilter)
+    .map(item => item.player))).sort((a, b) => a.localeCompare(b));
 
   return (
     <section className="space-y-7" aria-labelledby="performance-title">
@@ -115,7 +126,7 @@ export function PerformanceContent() {
       {activeTab === 'model' && error && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-y border-court-danger/40 py-4 text-sm text-court-text">
           <p>{error}</p>
-          <button type="button" onClick={() => void load()} className="font-medium text-court-accent underline underline-offset-4">Tentar novamente</button>
+          <button type="button" onClick={() => void load(teamFilter, playerFilter)} className="font-medium text-court-accent underline underline-offset-4">Tentar novamente</button>
         </div>
       )}
 
@@ -126,6 +137,11 @@ export function PerformanceContent() {
         </div>
       ) : activeTab === 'model' && data ? (
         <>
+          <div className="grid gap-3 rounded-xl border border-court-border p-4 sm:grid-cols-2" aria-label="Filtros do desempenho do modelo">
+            <label className="text-xs font-medium text-court-textMuted">Time do jogador<select className="input mt-1 py-2 text-sm" value={teamFilter} onChange={event => { setTeamFilter(event.target.value); setPlayerFilter('all'); }}><option value="all">Todos os times</option>{Array.from(new Set(data.playerTeamFacets.map(item => item.team))).sort((a, b) => a.localeCompare(b)).map(team => <option key={team} value={team}>{team}</option>)}</select></label>
+            <label className="text-xs font-medium text-court-textMuted">Jogador<select className="input mt-1 py-2 text-sm" value={playerFilter} onChange={event => setPlayerFilter(event.target.value)}><option value="all">Todos os jogadores</option>{playerOptions.map(player => <option key={player} value={player}>{player}</option>)}</select></label>
+          </div>
+          {!data.playerTeamFacets.length && <p className="text-xs leading-5 text-court-textMuted">Os próximos palpites serão registrados com o time do jogador. Previsões antigas não têm esse dado salvo.</p>}
           <div className="flex flex-wrap items-center justify-between gap-3 border-y border-court-border py-4" aria-live="polite">
             <p className="text-sm text-court-text">
               {data.settled === 0
@@ -264,6 +280,7 @@ type PersonalTicket = {
   createdAt: string;
   outcome: 'pending' | 'won' | 'lost' | 'push/void';
   outcomeSource: 'manual' | 'forecast';
+  legs: Array<{ player: string; playerTeam?: string | null }>;
 };
 
 const TICKET_OUTCOME_LABELS: Record<PersonalTicket['outcome'], string> = {
@@ -290,6 +307,8 @@ function SavedTicketPerformance() {
   const [tickets, setTickets] = useState<PersonalTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [teamFilter, setTeamFilter] = useState('all');
+  const [playerFilter, setPlayerFilter] = useState('all');
 
   useEffect(() => {
     let active = true;
@@ -308,15 +327,18 @@ function SavedTicketPerformance() {
   if (error) return <p role="alert" className="border-y border-court-danger/40 py-4 text-sm text-court-danger">{error}</p>;
   if (!tickets.length) return <div className="border-y border-court-border py-8"><h2 className="font-semibold text-court-text">Nenhum bilhete salvo ainda</h2><p className="mt-2 text-sm text-court-textMuted">Quando salvar uma sugestão ou montar seu bilhete no dashboard, o resultado aparecerá aqui separado das métricas gerais.</p><Link href="/" className="mt-3 inline-block text-sm font-medium text-court-accent underline-offset-4 hover:underline">Ir para o dashboard NBA</Link></div>;
 
-  const totalStaked = tickets.reduce((total, ticket) => total + ticket.stakeAmount, 0);
-  const settled = tickets.filter(ticket => ticket.outcome !== 'pending');
+  const ticketTeams = Array.from(new Set(tickets.flatMap(ticket => ticket.legs.map(leg => leg.playerTeam).filter((team): team is string => !!team)))).sort((a, b) => a.localeCompare(b));
+  const ticketPlayers = Array.from(new Set(tickets.flatMap(ticket => ticket.legs.filter(leg => teamFilter === 'all' || leg.playerTeam === teamFilter).map(leg => leg.player)))).sort((a, b) => a.localeCompare(b));
+  const filteredTickets = tickets.filter(ticket => ticket.legs.some(leg => (teamFilter === 'all' || leg.playerTeam === teamFilter) && (playerFilter === 'all' || leg.player === playerFilter)));
+  const totalStaked = filteredTickets.reduce((total, ticket) => total + ticket.stakeAmount, 0);
+  const settled = filteredTickets.filter(ticket => ticket.outcome !== 'pending');
   const withKnownReturn = settled.filter(ticket => ticketReturn(ticket) !== null);
   const settledStake = withKnownReturn.reduce((total, ticket) => total + ticket.stakeAmount, 0);
   const returned = withKnownReturn.reduce((total, ticket) => total + (ticketReturn(ticket) ?? 0), 0);
   const profit = returned - settledStake;
-  const wins = tickets.filter(ticket => ticket.outcome === 'won').length;
-  const losses = tickets.filter(ticket => ticket.outcome === 'lost').length;
-  const pending = tickets.filter(ticket => ticket.outcome === 'pending').length;
+  const wins = filteredTickets.filter(ticket => ticket.outcome === 'won').length;
+  const losses = filteredTickets.filter(ticket => ticket.outcome === 'lost').length;
+  const pending = filteredTickets.filter(ticket => ticket.outcome === 'pending').length;
   const unknownReturns = settled.length - withKnownReturn.length;
 
   return (
@@ -325,8 +347,13 @@ function SavedTicketPerformance() {
         <h2 id="saved-bet-performance-title" className="text-lg font-semibold text-court-text">Desempenho dos bilhetes salvos</h2>
         <p className="mt-1 text-sm text-court-textMuted">Somente bilhetes registrados como apostas pessoais entram nestes números. O retorno recebido informado por você prevalece sobre a estimativa.</p>
       </div>
+      <div className="grid gap-3 rounded-xl border border-court-border p-4 sm:grid-cols-2" aria-label="Filtros dos bilhetes pessoais">
+        <label className="text-xs font-medium text-court-textMuted">Time do jogador<select className="input mt-1 py-2 text-sm" value={teamFilter} onChange={event => { setTeamFilter(event.target.value); setPlayerFilter('all'); }}><option value="all">Todos os times</option>{ticketTeams.map(team => <option key={team} value={team}>{team}</option>)}</select></label>
+        <label className="text-xs font-medium text-court-textMuted">Jogador<select className="input mt-1 py-2 text-sm" value={playerFilter} onChange={event => setPlayerFilter(event.target.value)}><option value="all">Todos os jogadores</option>{ticketPlayers.map(player => <option key={player} value={player}>{player}</option>)}</select></label>
+      </div>
+      {!ticketTeams.length && <p className="text-xs leading-5 text-court-textMuted">O time dos jogadores será salvo nos novos bilhetes. Bilhetes antigos não têm essa informação registrada.</p>}
       <dl className="grid grid-cols-2 divide-x divide-y divide-court-border border-y border-court-border sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
-        <Metric label="Bilhetes salvos" value={String(tickets.length)} />
+        <Metric label="Bilhetes salvos" value={String(filteredTickets.length)} />
         <Metric label="Pendentes" value={String(pending)} />
         <Metric label="Ganhos / perdidos" value={`${wins} / ${losses}`} />
         <Metric label="Total apostado" value={currency(totalStaked)} />
@@ -335,7 +362,7 @@ function SavedTicketPerformance() {
       </dl>
       {unknownReturns > 0 && <p className="text-xs leading-5 text-court-textMuted">{unknownReturns} bilhete(s) apurado(s) sem odd combinada ou retorno real informado não entram no cálculo financeiro. Você pode completar os dados no <Link href="/history" className="text-court-accent underline underline-offset-4">Histórico</Link>.</p>}
       <div className="space-y-2">
-        {tickets.slice(0, 10).map(ticket => (
+        {filteredTickets.slice(0, 10).map(ticket => (
           <article key={ticket.id} className="flex flex-col gap-3 border-b border-court-border py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-medium text-court-text">{ticket.label}</p>
@@ -348,7 +375,7 @@ function SavedTicketPerformance() {
           </article>
         ))}
       </div>
-      {tickets.length > 10 && <p className="text-xs text-court-textMuted">Mostrando 10 bilhetes recentes de {tickets.length}. <Link href="/history" className="text-court-accent underline-offset-4 hover:underline">Abrir todos no Histórico</Link></p>}
+      {filteredTickets.length > 10 && <p className="text-xs text-court-textMuted">Mostrando 10 bilhetes recentes de {filteredTickets.length}. <Link href="/history" className="text-court-accent underline-offset-4 hover:underline">Abrir todos no Histórico</Link></p>}
       <p className="text-xs leading-5 text-court-textMuted">O resultado geral do modelo continua na aba “Resultados gerais” e mede previsões individuais, mesmo quando elas não foram incluídas em uma aposta.</p>
     </section>
   );
