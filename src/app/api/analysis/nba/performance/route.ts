@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, lte, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { playerPropForecasts } from '@/lib/db/schema';
 import { PlayerPropMarket } from '@/lib/analysis/player-props';
 import { PLAYER_PROP_MODEL_VERSION } from '@/lib/analysis/player-prop-storage';
 import { NBA_REGULAR_SEASON_START } from '@/lib/analysis/nba-season';
+import { NBA_PREDICTIONS_ENABLED } from '@/lib/analysis/prediction-controls';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
     const player = request.nextUrl.searchParams.get('player');
     const regularSeasonOnly = sql`(${playerPropForecasts.commence_time} at time zone 'America/New_York')::date >= ${NBA_REGULAR_SEASON_START}::date`;
     const filters = [eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION), regularSeasonOnly];
+    if (!NBA_PREDICTIONS_ENABLED) filters.push(lte(playerPropForecasts.commence_time, new Date()));
     if (team) filters.push(eq(playerPropForecasts.player_team, team));
     if (player) filters.push(eq(playerPropForecasts.player_name, player));
     const where = and(...filters);

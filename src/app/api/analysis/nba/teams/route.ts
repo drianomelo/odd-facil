@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, count, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, count, desc, eq, isNotNull, lte, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { playerPropForecasts, playerPropTicketLegs, playerPropTickets } from '@/lib/db/schema';
 import { PLAYER_PROP_MODEL_VERSION } from '@/lib/analysis/player-prop-storage';
 import { NBA_REGULAR_SEASON_START } from '@/lib/analysis/nba-season';
 import { getNbaSeasonPhase } from '@/lib/analysis/nba-season';
 import { getTicketOutcome } from '@/lib/analysis/ticket-result';
+import { NBA_PREDICTIONS_ENABLED } from '@/lib/analysis/prediction-controls';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,6 +88,7 @@ export async function GET(request: NextRequest) {
         eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION),
         isNotNull(playerPropForecasts.player_team),
         regularOnly,
+        ...(!NBA_PREDICTIONS_ENABLED ? [lte(playerPropForecasts.commence_time, new Date())] : []),
       )).groupBy(playerPropForecasts.player_team, playerPropForecasts.player_name),
       db.select({ id: playerPropTickets.id, manualOutcome: playerPropTickets.manual_outcome })
         .from(playerPropTickets).orderBy(desc(playerPropTickets.created_at)),

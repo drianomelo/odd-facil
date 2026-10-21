@@ -7,6 +7,7 @@ import { getCurrentPlayerPropMarkets } from '@/lib/api/propline';
 import { PLAYER_PROP_MODEL_VERSION } from '@/lib/analysis/player-prop-storage';
 import { getNbaSeasonPhase, NBA_REGULAR_SEASON_START } from '@/lib/analysis/nba-season';
 import { fromAppTimeZone } from '@/lib/utils/date';
+import { NBA_PREDICTIONS_ENABLED } from '@/lib/analysis/prediction-controls';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +68,7 @@ export async function GET(request: NextRequest) {
     }
 
     const filters: SQL[] = [eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION)];
+    if (!NBA_PREDICTIONS_ENABLED) filters.push(lte(playerPropForecasts.commence_time, new Date()));
     if (market) filters.push(eq(playerPropForecasts.market, market as PlayerPropMarket));
     if (team) filters.push(eq(playerPropForecasts.player_team, team));
     if (player) filters.push(eq(playerPropForecasts.player_name, player));
@@ -155,7 +157,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     let currentMarkets: Awaited<ReturnType<typeof getCurrentPlayerPropMarkets>> = [];
-    if (process.env.PROPLINE_API_KEY && rows.some(row => new Date(row.commenceTime).getTime() > Date.now())) {
+    if (NBA_PREDICTIONS_ENABLED && process.env.PROPLINE_API_KEY && rows.some(row => new Date(row.commenceTime).getTime() > Date.now())) {
       try { currentMarkets = await getCurrentPlayerPropMarkets(); } catch (error) {
         console.warn('[API/analysis/nba/history] Could not load current prop prices:', error);
       }

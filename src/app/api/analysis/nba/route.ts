@@ -2,10 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDailyPlayerAnalysis } from '@/lib/api/propline';
 import { storeUpcomingPlayerPropForecasts } from '@/lib/analysis/player-prop-storage';
 import { fromAppTimeZone, getPlayerPropAnalysisWindow } from '@/lib/utils/date';
+import { NBA_PREDICTIONS_ENABLED, NBA_PREDICTIONS_PAUSED_MESSAGE } from '@/lib/analysis/prediction-controls';
 
 export const revalidate = 600;
 
 export async function GET(request: NextRequest) {
+  if (!NBA_PREDICTIONS_ENABLED) {
+    return NextResponse.json({
+      configured: Boolean(process.env.PROPLINE_API_KEY),
+      source: 'PropLine · plano grátis',
+      fetchedAt: new Date().toISOString(),
+      analyzedPlayers: 0,
+      recommendations: [],
+      message: NBA_PREDICTIONS_PAUSED_MESSAGE,
+      tracking: { enabled: false, saved: 0 },
+      paused: true,
+    });
+  }
+
   const { searchParams } = new URL(request.url);
   const fromText = searchParams.get('from');
   const toText = searchParams.get('to');
