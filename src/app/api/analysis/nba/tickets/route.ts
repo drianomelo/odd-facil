@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { playerPropForecasts, playerPropTicketLegs, playerPropTickets } from '@/lib/db/schema';
+import { games, playerGameStats, playerPropForecasts, playerPropTicketLegs, playerPropTickets, teams } from '@/lib/db/schema';
 import { PLAYER_PROP_MODEL_VERSION } from '@/lib/analysis/player-prop-storage';
 import { getTicketOutcome } from '@/lib/analysis/ticket-result';
+import { gradePlayerProp } from '@/lib/analysis/player-prop-grading';
+import { NBA_PREDICTIONS_ENABLED } from '@/lib/analysis/prediction-controls';
+import { getPlayerPropAnalysisWindow } from '@/lib/utils/date';
+import { oddsApiClient } from '@/lib/api/odds-api';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,20 +20,46 @@ const legSchema = z.object({
   market: z.enum(MARKET_VALUES),
   line: z.number().finite(),
   side: z.enum(['Over', 'Under']),
-  bookmaker: z.string().min(1).max(100),
+  playerTeam: z.string().max(100).optional(),
+  americanOdds: z.number().int().min(-100000).max(100000).optional(),
+  bookmaker: z.string().min(1).max(100).optional(),
   bookmakerKey: z.string().max(100).optional(),
 });
 const bodySchema = z.object({
+  source: z.enum(['generated', 'manual']).default('generated'),
   kind: z.enum(['single', 'double', 'exaggerated', 'custom']),
   label: z.string().min(1).max(100),
   bookmaker: z.string().min(1).max(100),
-  stakeAmount: z.number().finite().positive().max(1000000),
+  stakeAmount: z.number().finite().min(0).max(1000000).default(0),
+  combinedDecimalOdds: z.number().finite().positive().max(100000).optional(),
   potentialReturn: z.number().finite().min(0).max(1000000000).optional(),
   legs: z.array(legSchema).min(1).max(10),
 });
 
 function normalizedBook(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function normalizedPlayer(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function normalizedTeam(value: string): string {
+  const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return normalized === 'losangelesclippers' ? 'laclippers' : normalized;
+}
+
+function seasonFromStart(start: string): string {
+  const year = Number(start.slice(0, 4));
+  return `${year}-${String(year + 1).slice(-2)}`;
+}
+
+function marketActual(market: typeof MARKET_VALUES[number], row: typeof playerGameStats.$inferSelect): number {
+  if (market === 'player_points') return row.points;
+  if (market === 'player_rebounds') return row.rebounds;
+  if (market === 'player_assists') return row.assists;
+  if (market === 'player_threes') return row.threes;
+  return row.points + row.rebounds + row.assists;
 }
 
 const stakeUpdateSchema = z.object({
@@ -54,6 +85,140 @@ export async function POST(request: NextRequest) {
     const parsed = bodySchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Dados do bilhete inválidos.' }, { status: 400 });
     const input = parsed.data;
+
+    if (input.source === 'manual') {
+      if (input.kind !== 'custom') return NextResponse.json({ error: 'Bilhetes registrados por fora devem usar o tipo personalizado.' }, { status: 400 });
+      const eventIds = Array.from(new Set(input.legs.map(leg => leg.eventId)));
+      const seasonStart = process.env.NBA_REGULAR_SEASON_START || '2026-10-20';
+      const season = seasonFromStart(seasonStart);
+      const home = alias(teams, 'manual_ticket_home');
+      const away = alias(teams, 'manual_ticket_away');
+      const [stats, seasonStats, fixtures] = await Promise.all([
+        db.select().from(playerGameStats).where(inArray(playerGameStats.event_id, eventIds)),
+        db.select().from(playerGameStats).where(eq(playerGameStats.season, season)),
+        db.select({ eventId: games.external_id, commenceTime: games.commence_time, homeTeam: home.name, awayTeam: away.name })
+          .from(games)
+          .innerJoin(home, eq(games.home_team_id, home.id))
+          .innerJoin(away, eq(games.away_team_id, away.id))
+          .where(and(eq(games.league_id, 'NBA'), eq(games.status, 'scheduled'), gt(games.commence_time, new Date()), inArray(games.external_id, eventIds))),
+      ]);
+      const fixtureById = new Map(fixtures.map(fixture => [fixture.eventId, fixture]));
+      const missingEventIds = eventIds.filter(eventId => !fixtureById.has(eventId));
+      if (missingEventIds.length) {
+        try {
+          const window = getPlayerPropAnalysisWindow();
+          const liveSchedule = await oddsApiClient.getNbaSchedule(window.from, window.to);
+          for (const game of liveSchedule) {
+            const eventId = game.id.replace(/^nba-/, '');
+            if (missingEventIds.includes(eventId)) fixtureById.set(eventId, {
+              eventId,
+              commenceTime: new Date(game.commence_time),
+              homeTeam: game.home_team.name,
+              awayTeam: game.away_team.name,
+            });
+          }
+        } catch (error) {
+          console.warn('[API/analysis/nba/tickets] Could not validate upcoming schedule:', error);
+        }
+      }
+      const matchedStats = input.legs.map(leg => {
+        const row = stats.find(item => item.event_id === leg.eventId
+          && normalizedPlayer(item.player_name) === normalizedPlayer(leg.player)
+          && (!leg.playerTeam || normalizedPlayer(item.team) === normalizedPlayer(leg.playerTeam)));
+        if (row) return {
+          leg,
+          eventId: row.event_id,
+          commenceTime: row.game_date,
+          opponentTeam: row.opponent,
+          playerName: row.player_name,
+          playerTeam: row.team,
+          actual: row.played ? marketActual(leg.market, row) : null,
+          pending: false,
+        };
+
+        const fixture = fixtureById.get(leg.eventId);
+        if (!fixture || !leg.playerTeam) return null;
+        const targetTeam = leg.playerTeam;
+        const playerRow = seasonStats.filter(item => item.played
+          && item.game_date < fixture.commenceTime
+          && normalizedPlayer(item.player_name) === normalizedPlayer(leg.player)
+          && normalizedTeam(item.team) === normalizedTeam(targetTeam)
+          && (normalizedTeam(item.team) === normalizedTeam(fixture.homeTeam) || normalizedTeam(item.team) === normalizedTeam(fixture.awayTeam)))
+          .sort((a, b) => b.game_date.getTime() - a.game_date.getTime())[0];
+        const isHomeTeam = normalizedTeam(targetTeam) === normalizedTeam(fixture.homeTeam);
+        const isAwayTeam = normalizedTeam(targetTeam) === normalizedTeam(fixture.awayTeam);
+        if (!isHomeTeam && !isAwayTeam) return null;
+        const opponentTeam = isHomeTeam ? fixture.awayTeam : fixture.homeTeam;
+        return {
+          leg,
+          eventId: fixture.eventId,
+          commenceTime: fixture.commenceTime,
+          opponentTeam,
+          playerName: playerRow?.player_name || leg.player,
+          playerTeam: playerRow?.team || targetTeam,
+          actual: null,
+          pending: true,
+        };
+      });
+      if (matchedStats.some(item => item === null)) {
+        return NextResponse.json({ error: 'Uma seleção não corresponde a um jogador desse jogo na base importada. Atualize os dados ou confira os nomes.' }, { status: 409 });
+      }
+
+      const complete = matchedStats as NonNullable<(typeof matchedStats)[number]>[];
+      const combinedDecimalOdds = input.combinedDecimalOdds ?? null;
+      const combinedAmericanOdds = combinedDecimalOdds === null ? null : combinedDecimalOdds >= 2
+        ? Math.round((combinedDecimalOdds - 1) * 100)
+        : -Math.round(100 / (combinedDecimalOdds - 1));
+      const potentialReturn = input.potentialReturn !== undefined
+        ? input.potentialReturn.toFixed(2)
+        : combinedDecimalOdds !== null && input.stakeAmount > 0
+          ? (input.stakeAmount * combinedDecimalOdds).toFixed(2)
+          : null;
+
+      const created = await db.transaction(async tx => {
+        const [ticket] = await tx.insert(playerPropTickets).values({
+          source: 'manual',
+          kind: 'custom',
+          label: input.label,
+          bookmaker: input.bookmaker,
+          combined_decimal_odds: combinedDecimalOdds?.toFixed(4) ?? null,
+          combined_american_odds: combinedAmericanOdds,
+          stake_amount: input.stakeAmount.toFixed(2),
+          potential_return: potentialReturn,
+        }).returning({ id: playerPropTickets.id, createdAt: playerPropTickets.created_at });
+        await tx.insert(playerPropTicketLegs).values(complete.map(({ leg, ...resolved }, index) => {
+          return {
+            ticket_id: ticket.id,
+            forecast_id: null,
+            position: index + 1,
+            event_id: resolved.eventId,
+            commence_time: resolved.commenceTime,
+            opponent_team: resolved.opponentTeam,
+            player_name: resolved.playerName,
+            player_team: resolved.playerTeam,
+            market: leg.market,
+            line: String(leg.line),
+            selection: leg.side,
+            american_odds: leg.americanOdds ?? null,
+            bookmaker: leg.bookmaker || input.bookmaker,
+            bookmaker_key: leg.bookmakerKey || null,
+            actual_value: resolved.actual === null ? null : String(resolved.actual),
+            result: resolved.pending ? null : gradePlayerProp(leg.side, leg.line, resolved.actual ?? undefined),
+            graded_at: resolved.pending ? null : new Date(),
+          };
+        }));
+        return ticket;
+      });
+      const hasPending = complete.some(item => item.pending);
+      return NextResponse.json({ id: created.id, createdAt: created.createdAt, message: hasPending
+        ? 'Bilhete pessoal salvo. As seleções dos jogos futuros ficam pendentes até a importação dos resultados reais.'
+        : 'Bilhete externo registrado e comparado com os dados reais importados.' }, { status: 201 });
+    }
+
+    if (!NBA_PREDICTIONS_ENABLED) {
+      return NextResponse.json({ error: 'A geração de novos bilhetes sugeridos está pausada enquanto concluímos a nova base.' }, { status: 423 });
+    }
+    if (!(input.stakeAmount > 0)) return NextResponse.json({ error: 'Informe o valor apostado.' }, { status: 400 });
     const expectedLegs = input.kind === 'single' ? 1 : input.kind === 'double' ? 2 : input.kind === 'exaggerated' ? 6 : null;
     if (expectedLegs !== null && input.legs.length !== expectedLegs) return NextResponse.json({ error: `Este bilhete precisa ter ${expectedLegs} seleção(ões).` }, { status: 400 });
     if (input.kind !== 'custom' && new Set(input.legs.map(leg => leg.player.toLowerCase())).size !== input.legs.length) {
@@ -76,7 +241,7 @@ export async function POST(request: NextRequest) {
         && item.side === leg.side
         && (leg.bookmakerKey
           ? item.bookmakerKey === leg.bookmakerKey
-          : normalizedBook(String(item.bookmaker || '')) === normalizedBook(leg.bookmaker))
+          : normalizedBook(String(item.bookmaker || '')) === normalizedBook(leg.bookmaker || ''))
         && Number.isFinite(Number(item.price)));
       if (!quote) return null;
       return { leg, forecast, quote };
@@ -125,7 +290,7 @@ export async function POST(request: NextRequest) {
         line: String(forecast.line),
         selection: leg.side,
         american_odds: Number(quote.price),
-        bookmaker: String(quote.bookmaker || leg.bookmaker),
+        bookmaker: String(quote.bookmaker || leg.bookmaker || input.bookmaker),
         bookmaker_key: quote.bookmakerKey ? String(quote.bookmakerKey) : leg.bookmakerKey || null,
       })));
       return ticket;
@@ -153,9 +318,12 @@ export async function GET() {
       selection: playerPropTicketLegs.selection,
       americanOdds: playerPropTicketLegs.american_odds,
       bookmaker: playerPropTicketLegs.bookmaker,
-      commenceTime: playerPropForecasts.commence_time,
-      result: playerPropForecasts.result,
-      actualValue: playerPropForecasts.actual_value,
+      forecastCommenceTime: playerPropForecasts.commence_time,
+      forecastResult: playerPropForecasts.result,
+      forecastActualValue: playerPropForecasts.actual_value,
+      storedCommenceTime: playerPropTicketLegs.commence_time,
+      storedResult: playerPropTicketLegs.result,
+      storedActualValue: playerPropTicketLegs.actual_value,
     }).from(playerPropTicketLegs)
       .leftJoin(playerPropForecasts, eq(playerPropTicketLegs.forecast_id, playerPropForecasts.id))
       .where(inArray(playerPropTicketLegs.ticket_id, tickets.map(ticket => ticket.id)))
@@ -164,7 +332,7 @@ export async function GET() {
     for (const leg of legs) byTicket.set(leg.ticketId, [...(byTicket.get(leg.ticketId) || []), leg]);
     return NextResponse.json({ tickets: tickets.map(ticket => {
       const ticketLegs = byTicket.get(ticket.id) || [];
-      const outcome = ticket.manual_outcome || getTicketOutcome(ticketLegs.map(leg => leg.result));
+      const outcome = ticket.manual_outcome || getTicketOutcome(ticketLegs.map(leg => leg.storedResult || leg.forecastResult));
       return {
         id: ticket.id,
         kind: ticket.kind,
@@ -176,10 +344,26 @@ export async function GET() {
         potentialReturn: ticket.potential_return === null ? null : Number(ticket.potential_return),
         actualReturn: ticket.actual_return === null ? null : Number(ticket.actual_return),
         manualOutcome: ticket.manual_outcome,
-        outcomeSource: ticket.manual_outcome ? 'manual' : 'forecast',
+        outcomeSource: ticket.manual_outcome ? 'manual' : ticket.source === 'manual' ? 'boxscore' : 'forecast',
+        source: ticket.source,
         createdAt: ticket.created_at,
         outcome,
-        legs: ticketLegs.map(leg => ({ ...leg, line: Number(leg.line), actualValue: leg.actualValue === null ? null : Number(leg.actualValue), result: leg.result || 'pending' })),
+        legs: ticketLegs.map(leg => ({
+          position: leg.position,
+          eventId: leg.eventId,
+          player: leg.player,
+          playerTeam: leg.playerTeam,
+          market: leg.market,
+          line: Number(leg.line),
+          selection: leg.selection,
+          americanOdds: leg.americanOdds,
+          bookmaker: leg.bookmaker,
+          commenceTime: (leg.storedCommenceTime || leg.forecastCommenceTime)?.toISOString() ?? null,
+          result: leg.storedResult || leg.forecastResult || 'pending',
+          actualValue: leg.storedActualValue !== null
+            ? Number(leg.storedActualValue)
+            : leg.forecastActualValue === null ? null : Number(leg.forecastActualValue),
+        })),
       };
     }) });
   } catch (error) {

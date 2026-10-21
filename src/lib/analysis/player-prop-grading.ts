@@ -55,7 +55,12 @@ export function getGradeablePlayerPropUpdates(
     if (!log || !isFinalPlayerGame(log.status)) continue;
 
     const statKey = MARKET_STAT[forecast.market];
-    const rawActual = statKey ? log.stats[statKey] : undefined;
+    let rawActual = statKey ? log.stats[statKey] : undefined;
+    if (forecast.market === 'player_points_rebounds_assists'
+      && (rawActual === null || rawActual === undefined || rawActual === '')) {
+      const components = [log.stats.points, log.stats.rebounds, log.stats.assists].map(Number);
+      if (components.every(Number.isFinite)) rawActual = components.reduce((total, value) => total + value, 0);
+    }
     const numericActual = rawActual === null || rawActual === undefined || rawActual === ''
       ? undefined
       : Number(rawActual);

@@ -82,6 +82,13 @@ describe('getGradeablePlayerPropUpdates', () => {
       .toEqual([{ id: 'pra', actual: 36, result: 'won' }]);
   });
 
+  it('reconstructs combined PRA from component stats when the feed omits its total', () => {
+    expect(getGradeablePlayerPropUpdates([
+      { id: 'pra-components', eventId: 'game-1', market: 'player_points_rebounds_assists', line: 35.5, selection: 'Over' },
+    ], [{ event_id: 'game-1', status: 'final', stats: { points: 24, rebounds: 8, assists: 5 } }]))
+      .toEqual([{ id: 'pra-components', actual: 37, result: 'won' }]);
+  });
+
   it('does not create updates for non-final games or events without matching logs', () => {
     expect(getGradeablePlayerPropUpdates(forecasts.slice(3, 5), [
       { event_id: 'game-2', status: 'scheduled', stats: { points: 50 } },
