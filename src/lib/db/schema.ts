@@ -215,8 +215,67 @@ export const playerPropForecasts = pgTable('player_prop_forecasts', {
   model_idx: index('player_prop_forecast_model_idx').on(table.model_version, table.recorded_at),
 }));
 
+/** Raw boxscore lines from completed games in the current NBA season. */
+export const playerGameStats = pgTable('player_game_stats', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  season: varchar('season', { length: 10 }).notNull(),
+  event_id: varchar('event_id', { length: 100 }).notNull(),
+  game_date: timestamp('game_date', { withTimezone: true }).notNull(),
+  player_id: varchar('player_id', { length: 100 }).notNull(),
+  player_name: varchar('player_name', { length: 100 }).notNull(),
+  team: varchar('team', { length: 100 }).notNull(),
+  opponent: varchar('opponent', { length: 100 }).notNull(),
+  minutes: decimal('minutes', { precision: 6, scale: 2 }).default('0').notNull(),
+  played: boolean('played').default(false).notNull(),
+  points: integer('points').default(0).notNull(),
+  rebounds: integer('rebounds').default(0).notNull(),
+  assists: integer('assists').default(0).notNull(),
+  threes: integer('threes').default(0).notNull(),
+  source: varchar('source', { length: 50 }).default('espn-public').notNull(),
+  source_url: text('source_url').notNull(),
+  imported_at: timestamp('imported_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  event_player_unique: uniqueIndex('player_game_stats_event_player_idx').on(table.event_id, table.player_id),
+  season_player_idx: index('player_game_stats_season_player_idx').on(table.season, table.player_id),
+  game_date_idx: index('player_game_stats_game_date_idx').on(table.game_date),
+  team_season_idx: index('player_game_stats_team_season_idx').on(table.season, table.team),
+}));
+
+/** Season-average pick snapshots kept separately from odds-based model forecasts. */
+export const seasonPlayerPicks = pgTable('season_player_picks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  season: varchar('season', { length: 10 }).notNull(),
+  event_id: varchar('event_id', { length: 100 }).notNull(),
+  player_id: varchar('player_id', { length: 100 }).notNull(),
+  player_name: varchar('player_name', { length: 100 }).notNull(),
+  player_team: varchar('player_team', { length: 100 }).notNull(),
+  opponent_team: varchar('opponent_team', { length: 100 }).notNull(),
+  game: text('game').notNull(),
+  market: varchar('market', { length: 50 }).notNull(),
+  line: decimal('line', { precision: 7, scale: 1 }).notNull(),
+  selection: varchar('selection', { length: 10 }).notNull(),
+  projection: decimal('projection', { precision: 8, scale: 2 }).notNull(),
+  sample_size: integer('sample_size').notNull(),
+  observed_hits: integer('observed_hits').notNull(),
+  observed_rate: decimal('observed_rate', { precision: 6, scale: 4 }).notNull(),
+  model_version: varchar('model_version', { length: 50 }).notNull(),
+  commence_time: timestamp('commence_time', { withTimezone: true }).notNull(),
+  recorded_at: timestamp('recorded_at', { withTimezone: true }).defaultNow().notNull(),
+  actual_value: decimal('actual_value', { precision: 8, scale: 2 }),
+  result: varchar('result', { length: 20 }),
+  graded_at: timestamp('graded_at', { withTimezone: true }),
+  details: jsonb('details').$type<Record<string, unknown>>().default({}).notNull(),
+}, (table) => ({
+  unique_pick: uniqueIndex('season_player_pick_identity_idx').on(
+    table.event_id, table.player_id, table.market, table.model_version,
+  ),
+  pending_idx: index('season_player_pick_pending_idx').on(table.result, table.commence_time),
+  season_player_idx: index('season_player_pick_season_player_idx').on(table.season, table.player_id),
+}));
+
 export const playerPropTickets = pgTable('player_prop_tickets', {
   id: uuid('id').defaultRandom().primaryKey(),
+  source: varchar('source', { length: 20 }).default('personal').notNull(),
   kind: varchar('kind', { length: 20 }).notNull(),
   label: varchar('label', { length: 100 }).notNull(),
   bookmaker: varchar('bookmaker', { length: 100 }).notNull(),
@@ -237,14 +296,19 @@ export const playerPropTicketLegs = pgTable('player_prop_ticket_legs', {
   forecast_id: uuid('forecast_id').references(() => playerPropForecasts.id, { onDelete: 'set null' }),
   position: integer('position').notNull(),
   event_id: varchar('event_id', { length: 100 }).notNull(),
+  commence_time: timestamp('commence_time', { withTimezone: true }),
+  opponent_team: varchar('opponent_team', { length: 100 }),
   player_name: varchar('player_name', { length: 100 }).notNull(),
   player_team: varchar('player_team', { length: 100 }),
   market: varchar('market', { length: 50 }).notNull(),
   line: decimal('line', { precision: 7, scale: 1 }).notNull(),
   selection: varchar('selection', { length: 10 }).notNull(),
-  american_odds: integer('american_odds').notNull(),
+  american_odds: integer('american_odds'),
   bookmaker: varchar('bookmaker', { length: 100 }).notNull(),
   bookmaker_key: varchar('bookmaker_key', { length: 100 }),
+  actual_value: decimal('actual_value', { precision: 8, scale: 2 }),
+  result: varchar('result', { length: 20 }),
+  graded_at: timestamp('graded_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   ticket_position_idx: uniqueIndex('player_prop_ticket_leg_position_idx').on(table.ticket_id, table.position),

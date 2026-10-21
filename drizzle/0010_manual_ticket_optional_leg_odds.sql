@@ -1,0 +1,1 @@
+ALTER TABLE "player_prop_ticket_legs" ALTER COLUMN "american_odds" DROP NOT NULL;
