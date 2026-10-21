@@ -2,7 +2,8 @@ export type PlayerPropSelection = 'Over' | 'Under';
 export type PlayerPropResult = 'won' | 'lost' | 'push' | 'void';
 
 export function isFinalPlayerGame(status: unknown): boolean {
-  return status === undefined || status === null || status === '' || status === 'final';
+  if (status === undefined || status === null || status === '') return true;
+  return typeof status === 'string' && status.trim().toLowerCase() === 'final';
 }
 
 export type GradeablePlayerPropForecast = {

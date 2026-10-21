@@ -38,7 +38,7 @@ async function getJson(path: string, revalidate: number): Promise<{ body: unknow
   if (!apiKey) throw new Error('Configure PROPLINE_API_KEY com uma chave grátis da PropLine para ativar a análise de jogadores.');
   const response = await fetch(`${BASE_URL}${path}`, {
     headers: { 'X-API-Key': apiKey, Accept: 'application/json' },
-    next: { revalidate },
+    ...(revalidate === 0 ? { cache: 'no-store' as const } : { next: { revalidate } }),
   });
   if (!response.ok) {
     const detail = await response.text();
@@ -56,11 +56,11 @@ function makeOddsPath(): string {
   return `/odds?${params.toString()}`;
 }
 
-export async function getPlayerGameLogs(player: string, limit = 20): Promise<PlayerGameLog[]> {
+export async function getPlayerGameLogs(player: string, limit = 20, revalidate = 21600): Promise<PlayerGameLog[]> {
   // Keep this query order stable after refreshing the cached player-team fields.
   const statTypes = 'assists,minutes,points,points_rebounds_assists,rebounds,threes';
   const path = `/players/${encodeURIComponent(player)}/games?limit=${limit}&stat_type=${statTypes}`;
-  const { body } = await getJson(path, 21600);
+  const { body } = await getJson(path, revalidate);
   const bodyRecord = body as JsonRecord;
   return records(bodyRecord?.games || bodyRecord).map(log => ({
     event_id: String(log.event_id || ''),

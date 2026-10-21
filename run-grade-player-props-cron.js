@@ -22,35 +22,16 @@ async function run() {
   console.log(`Apuração: HTTP ${response.status}`);
   console.log(JSON.stringify(body, null, 2));
 
+  if (response.ok && body.success === true && body.pendingForecasts === 0) {
+    console.log('Nenhum palpite elegível foi encontrado no banco deste endereço. A rotina só considera palpites pendentes cujo jogo começou há mais de 4 horas.');
+  }
+
   if (!response.ok || body.success !== true || body.errors > 0) {
     if (response.status === 404) {
       console.error('A rota não existe nesse endereço. Confira se o npm run dev está ligado na mesma porta. Se estiver em 3001, use $env:ODD_FACIL_BASE_URL="http://localhost:3001" antes de rodar a rotina.');
     }
     process.exitCode = 1;
     return;
-  }
-
-  const historyResponse = await fetch(
-    `${baseUrl}/api/analysis/nba/history?phase=preseason&limit=100`,
-  );
-  const history = await historyResponse.json().catch(() => ({}));
-
-  if (!historyResponse.ok || !Array.isArray(history.forecasts)) {
-    console.error(`Não foi possível consultar o piloto: HTTP ${historyResponse.status}`);
-    process.exitCode = 1;
-    return;
-  }
-
-  console.log('\nPiloto da pré-temporada:');
-  console.log(`${history.page.total} previsões no histórico`);
-  for (const item of history.forecasts) {
-    const game = item.game || 'Partida sem identificação';
-    const player = item.player || 'Jogador';
-    const market = item.market || 'Mercado';
-    const line = item.line ?? '—';
-    const actual = item.actualValue ?? 'aguardando jogo';
-    const result = item.result || 'pendente';
-    console.log(`- ${game} | ${player} | ${market} ${line} | ${result} | realizado: ${actual}`);
   }
 }
 

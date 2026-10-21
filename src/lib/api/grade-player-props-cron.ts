@@ -3,7 +3,7 @@ import { and, asc, eq, isNull, lt } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { playerPropForecasts } from '@/lib/db/schema';
 import { PlayerGameLog } from '@/lib/analysis/player-props';
-import { getGradeablePlayerPropUpdates, isTestPlayerPropForecast } from '@/lib/analysis/player-prop-grading';
+import { getGradeablePlayerPropUpdates, isFinalPlayerGame, isTestPlayerPropForecast } from '@/lib/analysis/player-prop-grading';
 
 const ACTIVE_MODEL_VERSION = 'player-props-v0.5.0';
 const MAX_PLAYERS_PER_RUN = 100;
@@ -51,6 +51,7 @@ export async function runPlayerPropGrading(request: NextRequest, loadLogs: Playe
     const players = Array.from(byPlayer.keys()).slice(0, MAX_PLAYERS_PER_RUN);
     let graded = 0;
     let voided = 0;
+    let waitingForFinalLogs = 0;
     let skippedTestForecasts = 0;
     let errors = 0;
     for (const player of players) {
@@ -62,6 +63,8 @@ export async function runPlayerPropGrading(request: NextRequest, loadLogs: Playe
           if (isTest) skippedTestForecasts++;
           return !isTest;
         });
+        const finalEventIds = new Set(logs.filter(log => isFinalPlayerGame(log.status)).map(log => log.event_id));
+        waitingForFinalLogs += eligibleForecasts.filter(forecast => !finalEventIds.has(forecast.eventId)).length;
         const updates = getGradeablePlayerPropUpdates(eligibleForecasts.map(forecast => ({
           id: forecast.id,
           eventId: forecast.eventId,
@@ -96,6 +99,7 @@ export async function runPlayerPropGrading(request: NextRequest, loadLogs: Playe
       playersChecked: players.length,
       graded,
       voided,
+      waitingForFinalLogs,
       skippedTestForecasts,
       errors,
       remainingPlayers: Math.max(0, byPlayer.size - players.length),

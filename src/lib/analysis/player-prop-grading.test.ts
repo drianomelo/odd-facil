@@ -24,6 +24,7 @@ describe('gradePlayerProp', () => {
 describe('isFinalPlayerGame', () => {
   it('accepts final logs and feeds that omit a status field', () => {
     expect(isFinalPlayerGame('final')).toBe(true);
+    expect(isFinalPlayerGame(' Final ')).toBe(true);
     expect(isFinalPlayerGame(undefined)).toBe(true);
     expect(isFinalPlayerGame(null)).toBe(true);
     expect(isFinalPlayerGame('')).toBe(true);
