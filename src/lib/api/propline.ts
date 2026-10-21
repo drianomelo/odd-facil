@@ -216,10 +216,30 @@ export async function getDailyPlayerAnalysis(from: Date, to: Date): Promise<{
     candidatesByPlayer.set(candidate.player, list);
   }
 
-  // Bound the daily free-tier usage: one odds pull and at most 32 player log pulls.
-  const players = Array.from(candidatesByPlayer.entries())
-    .sort((a, b) => b[1].length - a[1].length)
-    .slice(0, 32);
+  // Use the free-tier log budget to cover every game first, then use any
+  // remaining calls for players with the broadest set of available markets.
+  const propsByEvent = new Map<string, Map<string, typeof eventCandidates>>();
+  for (const candidate of eventCandidates) {
+    const eventId = String(candidate.event.id);
+    const eventPlayers = propsByEvent.get(eventId) || new Map<string, typeof eventCandidates>();
+    const playerProps = eventPlayers.get(candidate.player) || [];
+    playerProps.push(candidate);
+    eventPlayers.set(candidate.player, playerProps);
+    propsByEvent.set(eventId, eventPlayers);
+  }
+  const selectedPlayers = new Set<string>();
+  Array.from(propsByEvent.values()).forEach(eventPlayers => {
+    const bestPlayer = Array.from(eventPlayers.entries())
+      .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))[0]?.[0];
+    if (bestPlayer) selectedPlayers.add(bestPlayer);
+  });
+  const remainingPlayers = Array.from(candidatesByPlayer.entries())
+    .filter(([player]) => !selectedPlayers.has(player))
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  const players = [
+    ...Array.from(selectedPlayers, player => [player, candidatesByPlayer.get(player) || []] as const),
+    ...remainingPlayers,
+  ].slice(0, 32);
   const histories = new Map<string, PlayerGameLog[]>();
   let cursor = 0;
   const workers = Array.from({ length: Math.min(8, players.length) }, async () => {
@@ -227,7 +247,7 @@ export async function getDailyPlayerAnalysis(from: Date, to: Date): Promise<{
       const index = cursor++;
       const [player] = players[index];
       try {
-        histories.set(player, await getPlayerGameLogs(player));
+        histories.set(player, await getPlayerGameLogs(player, 40));
       } catch {
         histories.set(player, []);
       }

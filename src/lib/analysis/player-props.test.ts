@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyzePlayerProp, deduplicatePlayerPropCandidates, isSyntheticPickemBook, PlayerGameLog, PlayerPropCandidate, resolvePlayerOpponent } from './player-props';
+import { analyzePlayerProp, deduplicatePlayerPropCandidates, isSyntheticPickemBook, PlayerGameLog, PlayerPropCandidate, resolvePlayerOpponent, selectDailyPlayerPropShortlist } from './player-props';
 
 describe('resolvePlayerOpponent', () => {
   it('uses the player team to select the actual opponent independent of home or away', () => {
@@ -85,6 +85,42 @@ describe('analyzePlayerProp matchup validation', () => {
     const candidate = analyzePlayerProp(input(makeLogs('Philadelphia 76ers')));
     expect(candidate).toBeNull();
   });
+
+  it('excludes this game and later games from the historical sample', () => {
+    const logs = [
+      ...makeLogs('Boston Celtics'),
+      {
+        commence_time: '2026-10-21T23:00:00Z',
+        player_team: 'Boston Celtics',
+        opponent: 'Miami Heat',
+        status: 'final',
+        stats: { points: 1000, minutes: 40 },
+      },
+    ];
+    const candidate = analyzePlayerProp(input(logs));
+    expect(candidate?.sampleSize).toBe(8);
+    expect(candidate?.projection).toBeLessThan(100);
+  });
+
+  it('uses last-season data as a baseline while current-season sample is small', () => {
+    const logs = [
+      ...makeLogs('Boston Celtics'),
+      ...[21, 22].map(day => ({
+        commence_time: `2026-10-${day}T23:00:00Z`,
+        player_team: 'Boston Celtics',
+        opponent: 'Other Team',
+        status: 'final',
+        stats: { points: 40, minutes: 34 },
+      })),
+    ];
+    const candidate = analyzePlayerProp({
+      ...input(logs),
+      commenceTime: '2026-10-25T23:00:00Z',
+    });
+    expect(candidate?.reasons.join(' ')).toContain('Temporada atual: 2 jogos; histórico anterior: 8 jogos');
+    expect(candidate?.projection).toBeGreaterThan(20);
+    expect(candidate?.projection).toBeLessThan(40);
+  });
 });
 
 describe('deduplicatePlayerPropCandidates', () => {
@@ -134,5 +170,15 @@ describe('deduplicatePlayerPropCandidates', () => {
     const plain = candidate({ player: 'Julian Champagnie', id: 'plain', edge: 0.1 });
 
     expect(deduplicatePlayerPropCandidates([accented, plain])).toEqual([plain]);
+  });
+
+  it('keeps at most two strongest picks per game and spreads them across players', () => {
+    const picks = selectDailyPlayerPropShortlist([
+      candidate({ id: 'a-points', player: 'Player A', expectedValue: 0.12 }),
+      candidate({ id: 'a-rebounds', player: 'Player A', market: 'player_rebounds', expectedValue: 0.11 }),
+      candidate({ id: 'b-points', player: 'Player B', expectedValue: 0.1 }),
+      candidate({ id: 'c-points', player: 'Player C', gameId: 'game-2' }),
+    ]);
+    expect(picks.map(pick => pick.id)).toEqual(['a-points', 'b-points', 'c-points']);
   });
 });

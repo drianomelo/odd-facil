@@ -1,3 +1,5 @@
+import { NBA_REGULAR_SEASON_START } from './nba-season';
+
 export type PlayerPropMarket =
   | 'player_points'
   | 'player_rebounds'
@@ -118,6 +120,29 @@ export function deduplicatePlayerPropCandidates(candidates: PlayerPropCandidate[
   return Array.from(strongestByProp.values()).sort(compareCandidateQuality);
 }
 
+/** Keeps up to two strongest, distinct-player picks per game for the main board. */
+export function selectDailyPlayerPropShortlist(
+  candidates: PlayerPropCandidate[],
+  maxPerGame = 2,
+): PlayerPropCandidate[] {
+  const ranked = deduplicatePlayerPropCandidates(candidates);
+  const selected: PlayerPropCandidate[] = [];
+  const counts = new Map<string, number>();
+  const playersByGame = new Map<string, Set<string>>();
+  for (const candidate of ranked) {
+    const count = counts.get(candidate.gameId) || 0;
+    if (count >= maxPerGame) continue;
+    const playerKey = normalizedPlayerKey(candidate.player);
+    const players = playersByGame.get(candidate.gameId) || new Set<string>();
+    if (players.has(playerKey)) continue;
+    selected.push(candidate);
+    players.add(playerKey);
+    playersByGame.set(candidate.gameId, players);
+    counts.set(candidate.gameId, count + 1);
+  }
+  return selected;
+}
+
 const STAT_FIELDS: Record<PlayerPropMarket, string[]> = {
   player_points: ['points'],
   player_rebounds: ['rebounds'],
@@ -218,17 +243,33 @@ export function analyzePlayerProp(input: {
   injuryReportPlayers?: PlayerInjuryReportEntry[];
   injuryReportAvailable?: boolean;
 }): PlayerPropCandidate | null {
+  const gameTime = Date.parse(input.commenceTime);
+  if (!Number.isFinite(gameTime)) return null;
   const logs = input.logs
     .filter(log => !log.status || log.status === 'final')
+    .filter(log => {
+      const logTime = Date.parse(log.commence_time);
+      return Number.isFinite(logTime) && logTime < gameTime;
+    })
     .map(log => ({ log, value: getStat(log, input.market), minutes: getMinutes(log) }))
     .filter((row): row is typeof row & { value: number } => row.value !== undefined)
     .sort((a, b) => Date.parse(b.log.commence_time) - Date.parse(a.log.commence_time)
       || (a.log.commence_time < b.log.commence_time ? 1 : -1));
   if (logs.length < 5) return null;
 
-  const last5 = logs.slice(0, 5);
-  const last10 = logs.slice(0, 10);
-  const last20 = logs.slice(0, 20);
+  const seasonStart = Date.parse(`${NBA_REGULAR_SEASON_START}T00:00:00Z`);
+  const currentSeasonLogs = logs.filter(row => Date.parse(row.log.commence_time) >= seasonStart).slice(0, 20);
+  const priorSeasonStart = seasonStart - 365 * 24 * 60 * 60 * 1000;
+  const priorSeasonLogs = logs.filter(row => {
+    const logTime = Date.parse(row.log.commence_time);
+    return logTime >= priorSeasonStart && logTime < seasonStart;
+  }).slice(0, 20);
+  const preferredLogs = currentSeasonLogs.length >= 5 ? currentSeasonLogs : priorSeasonLogs;
+  if (preferredLogs.length < 5) return null;
+
+  const last5 = preferredLogs.slice(0, 5);
+  const last10 = preferredLogs.slice(0, 10);
+  const last20 = preferredLogs.slice(0, 20);
   const raw5 = average(last5.map(row => row.value));
   const raw10 = average(last10.map(row => row.value));
   const raw20 = average(last20.map(row => row.value));
@@ -297,7 +338,15 @@ export function analyzePlayerProp(input: {
     ? average(last5.map(row => row.minutes && row.minutes > 0 ? row.value / row.minutes : row.value / avgMinutes))
       * (avgMinutes * 0.55 + last5Minutes * 0.45)
     : raw5 * 0.5 + raw10 * 0.3 + raw20 * 0.2;
-  const projection = Math.max(0, perMinuteProjection * 0.65 + (raw5 * 0.5 + raw10 * 0.3 + raw20 * 0.2) * 0.35);
+  const withinSeasonProjection = Math.max(0, perMinuteProjection * 0.65 + (raw5 * 0.5 + raw10 * 0.3 + raw20 * 0.2) * 0.35);
+  const priorMean = average(priorSeasonLogs.map(row => row.value));
+  const currentSeasonWeight = currentSeasonLogs.length / (currentSeasonLogs.length + 8);
+  const currentSeasonProjection = currentSeasonLogs.length >= 5
+    ? withinSeasonProjection
+    : average(currentSeasonLogs.map(row => row.value));
+  const projection = currentSeasonLogs.length && priorSeasonLogs.length
+    ? currentSeasonProjection * currentSeasonWeight + priorMean * (1 - currentSeasonWeight)
+    : withinSeasonProjection;
   const matchupAdjustment = opponentAverage === undefined
     ? 0
     : Math.max(-0.1, Math.min(0.1, (opponentAverage - raw20) / Math.max(raw20, 1))) * projection * 0.2;
@@ -346,6 +395,9 @@ export function analyzePlayerProp(input: {
   const reasons = [
     `Projeção ${adjustedProjection.toFixed(1)} contra linha ${input.line}`,
     `Médias: L5 ${raw5.toFixed(1)}, L10 ${raw10.toFixed(1)}, L20 ${raw20.toFixed(1)}`,
+    currentSeasonLogs.length
+      ? `Temporada atual: ${currentSeasonLogs.length} jogos; histórico anterior: ${priorSeasonLogs.length} jogos${priorSeasonLogs.length ? ` (peso da temporada atual: ${Math.round(currentSeasonWeight * 100)}%)` : ''}.`
+      : `Sem jogos na temporada atual; usando ${priorSeasonLogs.length} jogos anteriores como referência.`,
   ];
   if (avgMinutes > 0) reasons.push(`Média de ${avgMinutes.toFixed(1)} minutos; tendência recente ${minuteTrend && minuteTrend >= 1 ? '+' : ''}${minuteTrend ? `${((minuteTrend - 1) * 100).toFixed(0)}%` : 'indisponível'}`);
   if (opponentAverage !== undefined) reasons.push(`${opponentAverage.toFixed(1)} de média nos ${opponentLogs.length} jogos recentes contra o adversário`);
@@ -360,7 +412,7 @@ export function analyzePlayerProp(input: {
   else if (opponentAverage === undefined) limitations.push('Amostra direta recente contra este adversário insuficiente; matchup não altera a projeção.');
   if (marketProbabilityOver === undefined) limitations.push('Sem cotações Over/Under pareadas para estimar consenso sem margem.');
 
-  const confidence = logs.length >= 15 && minuteTrend !== undefined && Math.abs(minuteTrend - 1) < 0.15
+  const confidence = preferredLogs.length >= 15 && minuteTrend !== undefined && Math.abs(minuteTrend - 1) < 0.15
     ? 'moderada'
     : 'baixa';
   const selectedExpectedValue = recommendationSide === 'Over' ? expectedValue : expectedValueUnder;
