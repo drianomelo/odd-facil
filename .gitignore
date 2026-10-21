@@ -21,6 +21,8 @@ pnpm-debug.log*
 # TypeScript and test artifacts
 *.tsbuildinfo
 /coverage/
+/data-backups/
+/data-backtests/
 
 # Local editor and operating system files
 .vscode/

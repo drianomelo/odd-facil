@@ -11,6 +11,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "cron:grade-player-props": "node run-grade-player-props-cron.js",
+    "data:reset": "node scripts/reset-prediction-data.mjs",
+    "data:sync-season": "node scripts/sync-season-player-stats.mjs",
+    "backtest:opening-slate": "node scripts/backtest-opening-slate.mjs",
+    "backtest:verify-opening-slate": "node scripts/verify-opening-slate-boxscores.mjs",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
