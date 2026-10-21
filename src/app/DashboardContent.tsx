@@ -10,6 +10,7 @@ import { propMarketLabel } from "@/lib/api/propline";
 import {
   PlayerPropCandidate,
   PlayerPropMarket,
+  selectDailyPlayerPropShortlist,
 } from "@/lib/analysis/player-props";
 import { PLAYER_PROP_MODEL_VERSION } from "@/lib/analysis/player-prop-storage";
 import { buildSuggestedTickets } from "@/lib/analysis/bet-builder";
@@ -17,6 +18,12 @@ import { PlayerAnalysisBoard } from "@/components/PlayerAnalysisBoard";
 import { SuggestedTickets } from "@/components/SuggestedTickets";
 import { PlayerSpotlight } from "@/components/PlayerSpotlight";
 import { StatusNotice } from "@/components/StatusNotice";
+import { NBA_PREDICTIONS_ENABLED, NBA_PREDICTIONS_PAUSED_MESSAGE } from "@/lib/analysis/prediction-controls";
+import { SeasonPlayerPick } from "@/lib/analysis/season-player-picks";
+import { getAndStoreSeasonPlayerPicks } from "@/lib/analysis/season-player-pick-storage";
+import { SeasonPlayerPicks } from "@/components/SeasonPlayerPicks";
+import { SeasonSuggestedTickets } from "@/components/SeasonSuggestedTickets";
+import { buildSeasonSuggestedTickets } from "@/lib/analysis/season-player-ticket-builder";
 
 interface DashboardData {
   last_update: string;
@@ -69,6 +76,15 @@ interface DashboardData {
       validationRoiPercent: number | null;
     }>;
     message?: string;
+  };
+  season_picks?: {
+    picks: SeasonPlayerPick[];
+    gamesInWindow: number;
+    excludedScheduledGames: number;
+    note?: string;
+    error?: string;
+    savedNow?: number;
+    trackedCount?: number;
   };
 }
 
@@ -303,9 +319,10 @@ const STATIC_DASHBOARD_DATA: DashboardData = {
     source: "dados-estaticos",
     fetchedAt: STATIC_NOW,
     analyzedPlayers: 10,
-    recommendations: STATIC_PICKS,
-    message:
-      "Dados demonstrativos para ajustes visuais. Nenhuma API foi consultada.",
+    recommendations: NBA_PREDICTIONS_ENABLED ? STATIC_PICKS : [],
+    message: NBA_PREDICTIONS_ENABLED
+      ? "Dados demonstrativos para ajustes visuais. Nenhuma API foi consultada."
+      : NBA_PREDICTIONS_PAUSED_MESSAGE,
   },
   player_performance: {
     modelVersion: "demo-estatico",
@@ -375,6 +392,18 @@ async function fetchDashboardData(): Promise<DashboardData> {
     performanceRes.json(),
   ]);
 
+  let seasonPicks = { picks: [], gamesInWindow: 0, excludedScheduledGames: 0 } as NonNullable<DashboardData["season_picks"]>;
+  try {
+    seasonPicks = await getAndStoreSeasonPlayerPicks({
+      games: gamesData.games || [],
+      from: playerPropWindow.from,
+      to: playerPropWindow.to,
+    });
+  } catch (error) {
+    console.error("[dashboard] Season signals unavailable:", error);
+    seasonPicks.error = "Não foi possível carregar os sinais. Confira a conexão com o banco e atualize a página.";
+  }
+
   const oddsApiConfigured = !!process.env.ODDS_API_KEY;
   const dbConfigured = !!process.env.DATABASE_URL;
   const propLineConfigured = !!process.env.PROPLINE_API_KEY;
@@ -384,7 +413,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
     next_update: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     games_today: gamesData.games || [],
     games_message: gamesData.message,
-    opportunities: opportunitiesData.opportunities || [],
+    opportunities: NBA_PREDICTIONS_ENABLED ? opportunitiesData.opportunities || [] : [],
     credit_usage: creditsData || { used: 0, remaining: 500, limit: 400 },
     sources_status: [
       {
@@ -412,6 +441,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
     demo_mode: process.env.DEMO_MODE === "true",
     player_analysis: playerAnalysis,
     player_performance: playerPerformance,
+    season_picks: seasonPicks,
   };
 }
 
@@ -420,10 +450,14 @@ export async function DashboardContent() {
     ? STATIC_DASHBOARD_DATA
     : await fetchDashboardData();
   const playerPropWindow = getPlayerPropAnalysisWindow();
-  const visibleRecommendations = data.player_analysis.recommendations.filter((pick) => {
+  const visibleRecommendations = (NBA_PREDICTIONS_ENABLED ? data.player_analysis.recommendations : []).filter((pick) => {
     const commence = Date.parse(pick.commenceTime);
     return Number.isFinite(commence) && commence >= playerPropWindow.from.getTime() && commence <= playerPropWindow.to.getTime();
   });
+  const featuredRecommendations = selectDailyPlayerPropShortlist(
+    visibleRecommendations,
+    2,
+  );
   const qualifiedOps = data.opportunities.filter((o) => o.qualified);
   const unqualifiedOps = data.opportunities.filter((o) => !o.qualified);
   const scheduledGames = data.games_today.filter(
@@ -442,7 +476,7 @@ export async function DashboardContent() {
       : (pick.expectedValue ?? -1);
   const recommendationsByMarket = propMarkets
     .map((market) => {
-      const allPicks = visibleRecommendations
+      const allPicks = featuredRecommendations
         .filter((pick) => pick.market === market)
         .sort(
           (a, b) =>
@@ -458,13 +492,19 @@ export async function DashboardContent() {
         seenPlayers.add(playerKey);
         return true;
       });
-      return { market, allPicks, picks: uniquePicks.slice(0, 6) };
+      return { market, allPicks, picks: uniquePicks };
     })
     .filter((group) => group.allPicks.length > 0);
   const suggestedTickets = buildSuggestedTickets(
     visibleRecommendations,
   );
-  const radarNotices = !data.player_analysis.configured
+  const radarNotices = !NBA_PREDICTIONS_ENABLED
+    ? [{
+        tone: "info" as const,
+        title: "Palpites pausados para validação",
+        content: NBA_PREDICTIONS_PAUSED_MESSAGE,
+      }]
+    : !data.player_analysis.configured
     ? [
         {
           tone: "warning" as const,
@@ -558,7 +598,7 @@ export async function DashboardContent() {
           <div className="relative z-10 order-2 flex items-center px-6 py-7 sm:px-10 lg:order-1 lg:px-12 lg:py-12">
             <StatsSummary
               opportunities={qualifiedOps.length}
-              playerPicks={recommendationsByMarket.reduce(
+              playerPicks={data.season_picks?.picks.length ?? recommendationsByMarket.reduce(
                 (total, group) => total + group.picks.length,
                 0,
               )}
@@ -576,7 +616,21 @@ export async function DashboardContent() {
       <div className="mx-auto max-w-7xl px-4 pt-8 pb-8 sm:px-6 sm:pt-16 lg:px-8">
         <GameAgendaCarousel games={scheduledGames} message={data.games_message} />
 
-        <section
+        {!STATIC_DASHBOARD_MODE && (
+          <>
+            <SeasonPlayerPicks
+              picks={data.season_picks?.picks || []}
+              gamesInWindow={data.season_picks?.gamesInWindow || 0}
+              excludedScheduledGames={data.season_picks?.excludedScheduledGames || 0}
+              note={data.season_picks?.note}
+              error={data.season_picks?.error}
+              trackedCount={data.season_picks?.trackedCount}
+            />
+            <SeasonSuggestedTickets tickets={buildSeasonSuggestedTickets(data.season_picks?.picks || [])} />
+          </>
+        )}
+
+        {NBA_PREDICTIONS_ENABLED && <section
           aria-labelledby="player-analysis-heading"
           className="mt-10 space-y-4 sm:mt-16"
         >
@@ -694,7 +748,7 @@ export async function DashboardContent() {
           ) : (
             null
           )}
-        </section>
+        </section>}
 
         {(qualifiedOps.length > 0 || unqualifiedOps.length > 0) && (
           <section

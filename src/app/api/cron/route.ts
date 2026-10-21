@@ -6,6 +6,7 @@ import { eq, and, gte, lt, sql, desc } from 'drizzle-orm';
 import { oddsApiClient } from '@/lib/api/odds-api';
 import { getDailyPlayerAnalysis } from '@/lib/api/propline';
 import { storeUpcomingPlayerPropForecasts } from '@/lib/analysis/player-prop-storage';
+import { NBA_PREDICTIONS_ENABLED } from '@/lib/analysis/prediction-controls';
 import { basketballModel } from '@/lib/analysis/model';
 import { 
   impliedProbability, marginFreeProbabilities, expectedValue, fairOdds, evPercentage,
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
     console.log('[Cron] Starting cron job');
     const today = new Date();
     const windowEnd = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    if (process.env.PROPLINE_API_KEY) {
+    if (NBA_PREDICTIONS_ENABLED && process.env.PROPLINE_API_KEY) {
       try {
         const analysis = await getDailyPlayerAnalysis(today, windowEnd);
         const tracking = await storeUpcomingPlayerPropForecasts(analysis.recommendations);
@@ -147,6 +148,8 @@ export async function GET(request: NextRequest) {
         console.log('[Cron] Processing game:', game.id);
         await upsertGame(game);
         await upsertOdds(game);
+
+        if (!NBA_PREDICTIONS_ENABLED) continue;
         
         const modelInput = buildModelInput(game);
         const prediction = basketballModel.analyze(modelInput);

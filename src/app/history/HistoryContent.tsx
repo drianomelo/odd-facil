@@ -7,6 +7,8 @@ import { formatAppDateTime } from '@/lib/utils/date';
 import { PlayerPropMarket } from '@/lib/analysis/player-props';
 import { getTicketOutcome } from '@/lib/analysis/ticket-result';
 import { getNbaSeasonPhase } from '@/lib/analysis/nba-season';
+import { ManualTicketForm } from './ManualTicketForm';
+import { SeasonPickTracking } from '@/components/SeasonPickTracking';
 
 type ForecastResult = 'pending' | 'won' | 'lost' | 'push' | 'void';
 type SeasonPhase = 'preseason' | 'regular';
@@ -42,8 +44,8 @@ type Forecast = {
     oddsChanged?: boolean | null;
   };
 };
-type SavedTicketLeg = { position: number; player: string; playerTeam?: string | null; market: PlayerPropMarket; line: number; selection: 'Over' | 'Under'; americanOdds: number; bookmaker: string; result: ForecastResult; actualValue: number | null; commenceTime: string | null };
-type SavedTicket = { id: string; label: string; bookmaker: string; combinedDecimalOdds: number | null; combinedAmericanOdds: number | null; stakeAmount: number; potentialReturn: number | null; actualReturn: number | null; manualOutcome: 'won' | 'lost' | 'push/void' | null; outcomeSource: 'manual' | 'forecast'; createdAt: string; outcome: 'pending' | 'won' | 'lost' | 'push/void'; legs: SavedTicketLeg[] };
+type SavedTicketLeg = { position: number; player: string; playerTeam?: string | null; market: PlayerPropMarket; line: number; selection: 'Over' | 'Under'; americanOdds: number | null; bookmaker: string; result: ForecastResult; actualValue: number | null; commenceTime: string | null };
+type SavedTicket = { id: string; source: string; label: string; bookmaker: string; combinedDecimalOdds: number | null; combinedAmericanOdds: number | null; stakeAmount: number; potentialReturn: number | null; actualReturn: number | null; manualOutcome: 'won' | 'lost' | 'push/void' | null; outcomeSource: 'manual' | 'boxscore' | 'forecast'; createdAt: string; outcome: 'pending' | 'won' | 'lost' | 'push/void'; legs: SavedTicketLeg[] };
 type HistoryResponse = {
   page: { limit: number; offset: number; total: number };
   summary: { total: number; pending: number; won: number; lost: number; push: number; void: number; preseason: number; regular: number };
@@ -104,7 +106,7 @@ export function HistoryContent({ initialPhase = 'all' }: { initialPhase?: string
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'predictions' | 'bets'>('predictions');
+  const [activeTab, setActiveTab] = useState<'predictions' | 'seasonPicks' | 'bets'>('predictions');
 
   const load = useCallback(async (filters: HistoryFilters, offset: number, append: boolean) => {
     if (append) setLoadingMore(true);
@@ -151,15 +153,17 @@ export function HistoryContent({ initialPhase = 'all' }: { initialPhase?: string
         </div>
         <div className="flex flex-wrap items-center gap-4"><Link href="/times" className="btn-secondary px-3 py-2 text-sm">Desempenho por time</Link><div className="flex items-center gap-2 text-sm text-court-textMuted" aria-live="polite">
           <CalendarDays aria-hidden="true" className="h-4 w-4" />
-          <span>{activeTab === 'predictions' ? summary ? `${summary.total} previsões registradas` : 'Carregando previsões' : 'Controle de apostas pessoais'}</span>
+          <span>{activeTab === 'predictions' ? summary ? `${summary.total} previsões registradas` : 'Carregando previsões' : activeTab === 'seasonPicks' ? 'Sinais da temporada atual' : 'Controle de apostas pessoais'}</span>
         </div></div>
       </div>
 
       <div className="flex gap-2 border-b border-court-border" role="tablist" aria-label="Tipo de histórico">
         <button type="button" role="tab" aria-selected={activeTab === 'predictions'} onClick={() => setActiveTab('predictions')} className={`border-b-2 px-3 py-2 text-sm font-medium ${activeTab === 'predictions' ? 'border-court-accent text-court-text' : 'border-transparent text-court-textMuted'}`}>Previsões do sistema</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'seasonPicks'} onClick={() => setActiveTab('seasonPicks')} className={`border-b-2 px-3 py-2 text-sm font-medium ${activeTab === 'seasonPicks' ? 'border-court-accent text-court-text' : 'border-transparent text-court-textMuted'}`}>Sinais da temporada</button>
         <button type="button" role="tab" aria-selected={activeTab === 'bets'} onClick={() => setActiveTab('bets')} className={`border-b-2 px-3 py-2 text-sm font-medium ${activeTab === 'bets' ? 'border-court-accent text-court-text' : 'border-transparent text-court-textMuted'}`}>Apostas pessoais</button>
       </div>
 
+      {activeTab === 'seasonPicks' ? <SeasonPickTracking mode="history" /> : null}
       {activeTab === 'predictions' ? <>
       {summary && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-court-border pb-4 text-sm" aria-label="Resumo do histórico">
@@ -174,7 +178,18 @@ export function HistoryContent({ initialPhase = 'all' }: { initialPhase?: string
         </div>
       )}
 
-      <form onSubmit={applyFilters} className="grid gap-3 rounded-xl border border-court-border bg-court-card p-4 sm:grid-cols-2 lg:grid-cols-8 lg:items-end">
+      <form onSubmit={applyFilters} className="rounded-xl border border-court-border bg-court-card p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 rounded-lg bg-court-accent/10 p-2 text-court-accent"><Filter aria-hidden="true" className="h-4 w-4" /></span>
+            <div>
+              <h3 className="text-sm font-semibold text-court-text">Filtrar previsões</h3>
+              <p className="mt-1 text-xs leading-5 text-court-textMuted">Escolha o resultado, o mercado ou o período que quer consultar.</p>
+            </div>
+          </div>
+          {data && <span className="rounded-full bg-court-bg px-3 py-1 text-xs text-court-textMuted">{data.page.total} {data.page.total === 1 ? 'resultado' : 'resultados'}</span>}
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <label className="flex flex-col gap-1.5 text-xs font-medium text-court-textMuted">
           Resultado
           <select className="input py-2 text-sm" value={draftFilters.result} onChange={event => setDraftFilters(current => ({ ...current, result: event.target.value }))}>
@@ -196,9 +211,13 @@ export function HistoryContent({ initialPhase = 'all' }: { initialPhase?: string
           Até
           <input className="input py-2 text-sm" type="date" value={draftFilters.to} onChange={event => setDraftFilters(current => ({ ...current, to: event.target.value }))} />
         </label>
-        <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
-          <button type="submit" className="btn-primary flex-1 px-3 py-2 text-sm"><Filter aria-hidden="true" className="h-4 w-4" />Filtrar</button>
-          <button type="button" onClick={clearFilters} className="btn-ghost px-3 py-2 text-sm" aria-label="Limpar filtros" title="Limpar filtros"><RotateCcw aria-hidden="true" className="h-4 w-4" /></button>
+        </div>
+        <div className="mt-4 flex flex-col-reverse gap-2 border-t border-court-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-court-textMuted">As alterações entram em vigor ao aplicar os filtros.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={clearFilters} className="btn-ghost px-3 py-2 text-sm"><RotateCcw aria-hidden="true" className="h-4 w-4" />Limpar filtros</button>
+            <button type="submit" className="btn-primary px-4 py-2 text-sm"><Filter aria-hidden="true" className="h-4 w-4" />Aplicar filtros</button>
+          </div>
         </div>
       </form>
 
@@ -310,11 +329,19 @@ function SavedTickets() {
   const [period, setPeriod] = useState({ from: '', to: '' });
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const ticketsInPeriod = tickets.filter(ticket => {
     const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bahia', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ticket.createdAt));
     const inPeriod = (!period.from || date >= period.from) && (!period.to || date <= period.to);
     return inPeriod;
   });
+  const ticketGroups = [
+    { outcome: 'pending' as const, title: 'Pendentes', note: 'Aguardando a apuração dos jogos.', style: 'text-court-warning' },
+    { outcome: 'won' as const, title: 'Acertados', note: 'Bilhetes com todas as seleções vencedoras.', style: 'text-court-success' },
+    { outcome: 'lost' as const, title: 'Errados', note: 'Bilhetes com pelo menos uma seleção perdida.', style: 'text-court-danger' },
+    { outcome: 'push/void' as const, title: 'Devolvidos ou anulados', note: 'Bilhetes devolvidos ou anulados conforme a apuração.', style: 'text-court-textMuted' },
+  ].map(group => ({ ...group, tickets: ticketsInPeriod.filter(ticket => ticket.outcome === group.outcome) }));
+  const visibleTicketGroups = ticketGroups.filter(group => group.tickets.length > 0);
   const totalStaked = ticketsInPeriod.reduce((total, ticket) => total + ticket.stakeAmount, 0);
   const getSettledReturn = (ticket: SavedTicket): number | null => {
     if (ticket.outcome === 'pending') return null;
@@ -351,7 +378,7 @@ function SavedTickets() {
       .catch(loadError => { if (active) setError(loadError instanceof Error ? loadError.message : 'Falha ao carregar bilhetes.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [reloadKey]);
 
   async function updateStake(ticketId: string) {
     let fields: { stakeAmount: string; combinedDecimalOdds: string; potentialReturn: string; actualReturn: string; manualOutcome: string };
@@ -415,12 +442,22 @@ function SavedTickets() {
         </div>
         {tickets.length > 0 && <span className="text-xs text-court-textMuted">{ticketsInPeriod.length} apostas no período</span>}
       </div>
+      <ManualTicketForm onSaved={() => setReloadKey(key => key + 1)} />
       {error && <p role="alert" className="rounded-lg border border-court-danger/40 p-3 text-sm text-court-danger">{error}</p>}
       {deleteError && <p role="alert" className="rounded-lg border border-court-danger/40 p-3 text-sm text-court-danger">{deleteError}</p>}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <label className="text-xs text-court-textMuted">De<input type="date" value={period.from} onChange={event => setPeriod(current => ({ ...current, from: event.target.value }))} className="input mt-1 py-2 text-sm" /></label>
-        <label className="text-xs text-court-textMuted">Até<input type="date" value={period.to} onChange={event => setPeriod(current => ({ ...current, to: event.target.value }))} className="input mt-1 py-2 text-sm" /></label>
-        <button type="button" onClick={() => setPeriod({ from: '', to: '' })} className="btn-ghost self-end px-3 py-2 text-sm">Limpar datas</button>
+      <div className="rounded-xl border border-court-border bg-court-card p-4 sm:p-5" aria-label="Filtros das apostas pessoais">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 rounded-lg bg-court-accent/10 p-2 text-court-accent"><CalendarDays aria-hidden="true" className="h-4 w-4" /></span>
+            <div><h4 className="text-sm font-semibold text-court-text">Período das apostas</h4><p className="mt-1 text-xs leading-5 text-court-textMuted">Filtre os bilhetes pela data em que foram salvos.</p></div>
+          </div>
+          <span className="rounded-full bg-court-bg px-3 py-1 text-xs text-court-textMuted">{ticketsInPeriod.length} {ticketsInPeriod.length === 1 ? 'aposta' : 'apostas'}</span>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-xs font-medium text-court-textMuted">Data inicial<input type="date" value={period.from} onChange={event => setPeriod(current => ({ ...current, from: event.target.value }))} className="input mt-1.5 py-2 text-sm" /></label>
+          <label className="text-xs font-medium text-court-textMuted">Data final<input type="date" value={period.to} onChange={event => setPeriod(current => ({ ...current, to: event.target.value }))} className="input mt-1.5 py-2 text-sm" /></label>
+        </div>
+        {(period.from || period.to) && <div className="mt-3 flex justify-end border-t border-court-border pt-3"><button type="button" onClick={() => setPeriod({ from: '', to: '' })} className="btn-ghost px-3 py-2 text-sm"><RotateCcw aria-hidden="true" className="h-4 w-4" />Limpar período</button></div>}
       </div>
       {ticketsInPeriod.length > 0 && <div className="grid gap-3 sm:grid-cols-3" aria-label="Resumo financeiro das apostas">
         <div className="rounded-lg border border-court-border p-3"><p className="text-xs text-court-textMuted">Total apostado</p><p className="mt-1 font-mono font-semibold text-court-text">{formatCurrency(totalStaked)}</p></div>
@@ -428,8 +465,25 @@ function SavedTickets() {
         <div className="rounded-lg border border-court-border p-3"><p className="text-xs text-court-textMuted">Lucro / prejuízo apurado</p><p className={`mt-1 font-mono font-semibold ${settledProfit >= 0 ? 'text-court-success' : 'text-court-danger'}`}>{formatCurrency(settledProfit)}</p></div>
       </div>}
       {ticketsInPeriod.length > 0 && <p className="-mt-2 text-xs text-court-textMuted">O retorno apurado usa o valor recebido que você informar; sem esse dado, calcula pela odd e pelo retorno potencial. Bilhetes ainda pendentes não entram no lucro.</p>}
-      <div className="space-y-3">
-        {ticketsInPeriod.map(ticket => {
+      {visibleTicketGroups.length > 0 && (
+        <nav aria-label="Navegar pelos resultados das apostas" className="flex flex-wrap gap-2 border-y border-court-border py-3">
+          {visibleTicketGroups.map(group => (
+            <a key={group.outcome} href={`#saved-ticket-group-${group.outcome.replace('/', '-')}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-court-border bg-court-card px-3 py-2 text-sm font-medium text-court-text transition-colors hover:border-court-accent/50 hover:bg-court-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-court-accent">
+              <span className={group.style}>{group.title}</span>
+              <span className="rounded-full bg-court-bg px-2 py-0.5 text-xs text-court-textMuted">{group.tickets.length}</span>
+            </a>
+          ))}
+        </nav>
+      )}
+      <div className="space-y-6">
+        {ticketGroups.map(group => group.tickets.length > 0 && (
+        <section key={group.outcome} id={`saved-ticket-group-${group.outcome.replace('/', '-')}`} aria-labelledby={`saved-ticket-group-heading-${group.outcome.replace('/', '-')}`} className="scroll-mt-24">
+          <div className="flex flex-wrap items-end justify-between gap-2 border-b border-court-border pb-2">
+            <div><h4 id={`saved-ticket-group-heading-${group.outcome.replace('/', '-')}`} className={`font-semibold ${group.style}`}>{group.title}</h4><p className="mt-0.5 text-xs text-court-textMuted">{group.note}</p></div>
+            <span className="rounded-full bg-court-bg px-2.5 py-1 text-xs text-court-textMuted">{group.tickets.length}</span>
+          </div>
+          <div className="mt-3 space-y-3">
+        {group.tickets.map(ticket => {
           const fields = (() => { try { return JSON.parse(stakeDrafts[ticket.id] || '{}'); } catch { return {}; } })() as { stakeAmount?: string; combinedDecimalOdds?: string; potentialReturn?: string; actualReturn?: string; manualOutcome?: string };
           const updateField = (name: keyof typeof fields, value: string) => setStakeDrafts(current => {
             let draft: typeof fields = {};
@@ -485,6 +539,9 @@ function SavedTickets() {
             {ticket.outcome === 'push/void' && <p className="text-xs leading-5 text-court-textMuted">Todas as pernas foram apuradas, mas pelo menos uma foi push ou anulada. Casas podem remover essa perna e recalcular a odd do bilhete conforme suas regras.</p>}
           </article>
         );})}
+          </div>
+        </section>
+        ))}
         {!loading && ticketsInPeriod.length === 0 && <p className="rounded-lg border border-court-border p-6 text-center text-sm text-court-textMuted">Nenhuma aposta neste período.</p>}
       </div>
     </section>

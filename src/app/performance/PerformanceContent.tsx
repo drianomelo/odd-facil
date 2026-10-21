@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { Filter, RotateCcw } from 'lucide-react';
 import { PlayerPropMarket } from '@/lib/analysis/player-props';
 import { getNbaSeasonPhase } from '@/lib/analysis/nba-season';
+import { SeasonBasePanel } from './SeasonBasePanel';
+import { SeasonPickTracking } from '@/components/SeasonPickTracking';
 
 type MarketPerformance = {
   market: PlayerPropMarket;
@@ -79,7 +82,7 @@ export function PerformanceContent() {
   const [data, setData] = useState<Performance | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'model' | 'tickets'>('model');
+  const [activeTab, setActiveTab] = useState<'model' | 'tickets' | 'season' | 'seasonPicks'>('seasonPicks');
   const [teamFilter, setTeamFilter] = useState('all');
   const [playerFilter, setPlayerFilter] = useState('all');
 
@@ -113,15 +116,17 @@ export function PerformanceContent() {
         <div>
           <h1 id="performance-title" className="text-2xl font-bold text-court-text sm:text-3xl">Desempenho</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-court-textMuted">
-            Consulte separadamente os resultados gerais das previsões e o desempenho dos bilhetes que você salvou como apostas.
+            Veja os resultados reais da temporada e os palpites que você registrou, cada um na sua própria base.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-4"><Link href="/times" className="btn-secondary px-3 py-2 text-sm">Desempenho por time</Link><Link href={activeTab === 'model' ? '/history?phase=regular' : '/history'} className="text-sm font-medium text-court-accent underline-offset-4 hover:underline">{activeTab === 'model' ? 'Ver previsões registradas' : 'Gerenciar apostas no Histórico'}</Link></div>
+        <div className="flex flex-wrap items-center gap-4"><Link href="/times" className="btn-secondary px-3 py-2 text-sm">Desempenho por time</Link><Link href={activeTab === 'model' ? '/history?phase=regular' : '/history'} className="text-sm font-medium text-court-accent underline-offset-4 hover:underline">{activeTab === 'model' ? 'Ver previsões registradas' : activeTab === 'tickets' ? 'Gerenciar apostas no Histórico' : activeTab === 'season' ? 'Registrar meus palpites' : 'Abrir histórico dos sinais'}</Link></div>
       </div>
 
       <div className="flex gap-2 border-b border-court-border" role="tablist" aria-label="Desempenho por origem">
         <button type="button" role="tab" aria-selected={activeTab === 'model'} onClick={() => setActiveTab('model')} className={`border-b-2 px-3 py-2 text-sm font-medium ${activeTab === 'model' ? 'border-court-accent text-court-text' : 'border-transparent text-court-textMuted'}`}>Resultados gerais</button>
         <button type="button" role="tab" aria-selected={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')} className={`border-b-2 px-3 py-2 text-sm font-medium ${activeTab === 'tickets' ? 'border-court-accent text-court-text' : 'border-transparent text-court-textMuted'}`}>Meus bilhetes salvos</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'season'} onClick={() => setActiveTab('season')} className={`border-b-2 px-3 py-2 text-sm font-medium ${activeTab === 'season' ? 'border-court-accent text-court-text' : 'border-transparent text-court-textMuted'}`}>Base da temporada</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'seasonPicks'} onClick={() => setActiveTab('seasonPicks')} className={`border-b-2 px-3 py-2 text-sm font-medium ${activeTab === 'seasonPicks' ? 'border-court-accent text-court-text' : 'border-transparent text-court-textMuted'}`}>Sinais da temporada</button>
       </div>
 
       {activeTab === 'model' && error && (
@@ -138,9 +143,16 @@ export function PerformanceContent() {
         </div>
       ) : activeTab === 'model' && data ? (
         <>
-          <div className="grid gap-3 rounded-xl border border-court-border p-4 sm:grid-cols-2" aria-label="Filtros do desempenho do modelo">
-            <label className="text-xs font-medium text-court-textMuted">Time do jogador<select className="input mt-1 py-2 text-sm" value={teamFilter} onChange={event => { setTeamFilter(event.target.value); setPlayerFilter('all'); }}><option value="all">Todos os times</option>{Array.from(new Set(data.playerTeamFacets.map(item => item.team))).sort((a, b) => a.localeCompare(b)).map(team => <option key={team} value={team}>{team}</option>)}</select></label>
-            <label className="text-xs font-medium text-court-textMuted">Jogador<select className="input mt-1 py-2 text-sm" value={playerFilter} onChange={event => setPlayerFilter(event.target.value)}><option value="all">Todos os jogadores</option>{playerOptions.map(player => <option key={player} value={player}>{player}</option>)}</select></label>
+          <div className="rounded-xl border border-court-border bg-court-card p-4 sm:p-5" aria-label="Filtros do desempenho do modelo">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-start gap-3"><span className="mt-0.5 rounded-lg bg-court-accent/10 p-2 text-court-accent"><Filter aria-hidden="true" className="h-4 w-4" /></span><div><h2 className="text-sm font-semibold text-court-text">Filtrar resultados</h2><p className="mt-1 text-xs leading-5 text-court-textMuted">Escolha um time ou jogador. Os números são atualizados automaticamente.</p></div></div>
+              <span className="rounded-full bg-court-bg px-3 py-1 text-xs text-court-textMuted">{data.totalForecasts} {data.totalForecasts === 1 ? 'previsão' : 'previsões'}</span>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-medium text-court-textMuted">Time do jogador<select className="input mt-1.5 py-2 text-sm" value={teamFilter} onChange={event => { setTeamFilter(event.target.value); setPlayerFilter('all'); }}><option value="all">Todos os times</option>{Array.from(new Set(data.playerTeamFacets.map(item => item.team))).sort((a, b) => a.localeCompare(b)).map(team => <option key={team} value={team}>{team}</option>)}</select></label>
+              <label className="text-xs font-medium text-court-textMuted">Jogador<select className="input mt-1.5 py-2 text-sm" value={playerFilter} onChange={event => setPlayerFilter(event.target.value)}><option value="all">Todos os jogadores</option>{playerOptions.map(player => <option key={player} value={player}>{player}</option>)}</select></label>
+            </div>
+            {(teamFilter !== 'all' || playerFilter !== 'all') && <div className="mt-3 flex justify-end border-t border-court-border pt-3"><button type="button" onClick={() => { setTeamFilter('all'); setPlayerFilter('all'); }} className="btn-ghost px-3 py-2 text-sm"><RotateCcw aria-hidden="true" className="h-4 w-4" />Limpar filtros</button></div>}
           </div>
           {!data.playerTeamFacets.length && <p className="text-xs leading-5 text-court-textMuted">Os próximos palpites serão registrados com o time do jogador. Previsões antigas não têm esse dado salvo.</p>}
           <div className="flex flex-wrap items-center justify-between gap-3 border-y border-court-border py-4" aria-live="polite">
@@ -265,6 +277,8 @@ export function PerformanceContent() {
       ) : null}
 
       {activeTab === 'tickets' && <SavedTicketPerformance />}
+      {activeTab === 'season' && <SeasonBasePanel />}
+      {activeTab === 'seasonPicks' && <SeasonPickTracking mode="performance" />}
     </section>
   );
 }
@@ -289,7 +303,7 @@ type PersonalTicket = {
   actualReturn: number | null;
   createdAt: string;
   outcome: 'pending' | 'won' | 'lost' | 'push/void';
-  outcomeSource: 'manual' | 'forecast';
+  outcomeSource: 'manual' | 'boxscore' | 'forecast';
   legs: Array<{ player: string; playerTeam?: string | null; commenceTime?: string | Date | null }>;
 };
 
@@ -358,9 +372,16 @@ function SavedTicketPerformance() {
         <h2 id="saved-bet-performance-title" className="text-lg font-semibold text-court-text">Desempenho dos bilhetes salvos</h2>
         <p className="mt-1 text-sm text-court-textMuted">Somente bilhetes registrados como apostas pessoais entram nestes números. O retorno recebido informado por você prevalece sobre a estimativa.</p>
       </div>
-      <div className="grid gap-3 rounded-xl border border-court-border p-4 sm:grid-cols-2" aria-label="Filtros dos bilhetes pessoais">
-        <label className="text-xs font-medium text-court-textMuted">Time do jogador<select className="input mt-1 py-2 text-sm" value={teamFilter} onChange={event => { setTeamFilter(event.target.value); setPlayerFilter('all'); }}><option value="all">Todos os times</option>{ticketTeams.map(team => <option key={team} value={team}>{team}</option>)}</select></label>
-        <label className="text-xs font-medium text-court-textMuted">Jogador<select className="input mt-1 py-2 text-sm" value={playerFilter} onChange={event => setPlayerFilter(event.target.value)}><option value="all">Todos os jogadores</option>{ticketPlayers.map(player => <option key={player} value={player}>{player}</option>)}</select></label>
+      <div className="rounded-xl border border-court-border bg-court-card p-4 sm:p-5" aria-label="Filtros dos bilhetes pessoais">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3"><span className="mt-0.5 rounded-lg bg-court-accent/10 p-2 text-court-accent"><Filter aria-hidden="true" className="h-4 w-4" /></span><div><h3 className="text-sm font-semibold text-court-text">Encontrar meus bilhetes</h3><p className="mt-1 text-xs leading-5 text-court-textMuted">Filtre pelo time ou jogador presente nas seleções.</p></div></div>
+          <span className="rounded-full bg-court-bg px-3 py-1 text-xs text-court-textMuted">{filteredTickets.length} {filteredTickets.length === 1 ? 'bilhete' : 'bilhetes'}</span>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-xs font-medium text-court-textMuted">Time do jogador<select className="input mt-1.5 py-2 text-sm" value={teamFilter} onChange={event => { setTeamFilter(event.target.value); setPlayerFilter('all'); }}><option value="all">Todos os times</option>{ticketTeams.map(team => <option key={team} value={team}>{team}</option>)}</select></label>
+          <label className="text-xs font-medium text-court-textMuted">Jogador<select className="input mt-1.5 py-2 text-sm" value={playerFilter} onChange={event => setPlayerFilter(event.target.value)}><option value="all">Todos os jogadores</option>{ticketPlayers.map(player => <option key={player} value={player}>{player}</option>)}</select></label>
+        </div>
+        {(teamFilter !== 'all' || playerFilter !== 'all') && <div className="mt-3 flex justify-end border-t border-court-border pt-3"><button type="button" onClick={() => { setTeamFilter('all'); setPlayerFilter('all'); }} className="btn-ghost px-3 py-2 text-sm"><RotateCcw aria-hidden="true" className="h-4 w-4" />Limpar filtros</button></div>}
       </div>
       {!ticketTeams.length && <p className="text-xs leading-5 text-court-textMuted">O time dos jogadores será salvo nos novos bilhetes. Bilhetes antigos não têm essa informação registrada.</p>}
       <dl className="grid grid-cols-2 divide-x divide-y divide-court-border border-y border-court-border sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
