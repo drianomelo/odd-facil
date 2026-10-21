@@ -91,6 +91,30 @@ describe('buildSuggestedTickets', () => {
     expect(tickets[1].selections.map(leg => leg.id)).toEqual(['steady-pick', 'ev-pick']);
   });
 
+  it('allows a player in different tickets for different markets but never repeats the same player market', () => {
+    const props = [
+      candidate({ id: 'anthony-pra-main', player: 'Anthony Edwards', market: 'player_points_rebounds_assists', line: 34.5, edge: 0.3, expectedValue: 0.3 }),
+      candidate({ id: 'anthony-pra-alt', player: 'Anthony Edwards', market: 'player_points_rebounds_assists', line: 37.5, edge: 0.29, expectedValue: 0.29 }),
+      candidate({ id: 'anthony-points', player: 'Anthony Edwards', market: 'player_points', line: 24.5, edge: 0.28, expectedValue: 0.28 }),
+      candidate({ id: 'jalen-rebounds', player: 'Jalen Suggs', market: 'player_rebounds', edge: 0.2, expectedValue: 0.2 }),
+      candidate({ id: 'anthony-assists', player: 'Anthony Edwards', market: 'player_assists', edge: 0.18, expectedValue: 0.18 }),
+      ...Array.from({ length: 6 }, (_, index) => candidate({
+        id: `other-${index}`,
+        player: `Other Player ${index}`,
+        gameId: `other-game-${index}`,
+        edge: 0.17 - index * 0.01,
+        expectedValue: 0.17 - index * 0.01,
+      })),
+    ];
+    const tickets = buildSuggestedTickets(props);
+    expect(tickets.map(ticket => ticket.id)).toEqual(['single', 'double', 'exaggerated']);
+    const anthonyLegs = tickets.flatMap(ticket => ticket.selections).filter(leg => leg.player === 'Anthony Edwards');
+    expect(anthonyLegs.map(leg => leg.market).sort()).toEqual(['player_assists', 'player_points', 'player_points_rebounds_assists']);
+    const playerMarkets = tickets.flatMap(ticket => ticket.selections.map(leg => `${leg.player.toLowerCase()}:${leg.market}`));
+    expect(new Set(playerMarkets).size).toBe(playerMarkets.length);
+    expect(tickets.every(ticket => new Set(ticket.selections.map(leg => leg.player.toLowerCase())).size === ticket.selections.length)).toBe(true);
+  });
+
   it('allows two different players from the same game in a multiple', () => {
     const sameGame = candidate({ id: 'same-game-player-b', player: 'Player B', gameId: 'event-1' });
     const sameGameThird = candidate({ id: 'same-game-player-c', player: 'Player C', gameId: 'event-1', bestOver: { side: 'Over', price: 130, bookmaker: 'Book B', updatedAt: '2026-10-20T12:00:00Z' }, quotes: [{ side: 'Over', price: 130, bookmaker: 'Book B', updatedAt: '2026-10-20T12:00:00Z' }] });

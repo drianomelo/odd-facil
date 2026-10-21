@@ -68,14 +68,13 @@ function compareEntries(a: EligibleEntry, b: EligibleEntry): number {
     || b.candidate.sampleSize - a.candidate.sampleSize;
 }
 
-function selectionKey(candidate: PlayerPropCandidate): string {
-  return [
-    candidate.gameId,
-    candidate.player.trim().toLowerCase(),
-    candidate.market,
-    candidate.line,
-    candidate.recommendationSide || 'Over',
-  ].join(':');
+function normalizePlayerName(player: string): string {
+  return player.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+}
+
+function playerMarketKey(candidate: PlayerPropCandidate): string {
+  return `${normalizePlayerName(candidate.player)}:${candidate.market}`;
 }
 
 function toDecimalOdds(americanOdds: number): number {
@@ -146,17 +145,17 @@ export function buildSuggestedTickets(candidates: PlayerPropCandidate[]): Sugges
     .sort(compareEntries);
 
   const tickets: SuggestedTicket[] = [];
-  const usedSelections = new Set<string>();
+  const usedPlayerMarkets = new Set<string>();
   const top = eligible[0];
   if (top) {
     const quote = bestAvailableQuote(top);
     tickets.push(makeTicket('single', 'Simples', [top], [quote], toDecimalOdds(quote.price), getProbability(top.candidate)));
-    usedSelections.add(selectionKey(top.candidate));
+    usedPlayerMarkets.add(playerMarketKey(top.candidate));
   }
 
-  const pairPool = eligible.filter(entry => !usedSelections.has(selectionKey(entry.candidate))).slice(0, 80);
+  const pairPool = eligible.filter(entry => !usedPlayerMarkets.has(playerMarketKey(entry.candidate))).slice(0, 80);
   const pair = pairPool.length
-    ? [pairPool[0], pairPool.find(entry => entry.candidate.player.toLowerCase() !== pairPool[0].candidate.player.toLowerCase())]
+    ? [pairPool[0], pairPool.find(entry => normalizePlayerName(entry.candidate.player) !== normalizePlayerName(pairPool[0].candidate.player))]
         .filter((entry): entry is EligibleEntry => !!entry)
     : [];
   const pairQuotes = pair.map(bestAvailableQuote);
@@ -166,13 +165,20 @@ export function buildSuggestedTickets(candidates: PlayerPropCandidate[]): Sugges
     tickets.push(makeTicket('double', 'Múltipla com 2 seleções', bestPair.entries, bestPair.quotes,
       bestPair.decimal, null,
       'Selecionada pela força dos palpites, não pela maior odd. A chance conjunta não é estimada porque as seleções podem ser correlacionadas; a odd combina preços individuais e pode diferir da cotação da múltipla na casa.'));
-    bestPair.entries.forEach(entry => usedSelections.add(selectionKey(entry.candidate)));
+    bestPair.entries.forEach(entry => usedPlayerMarkets.add(playerMarketKey(entry.candidate)));
   }
 
-  const unique = eligible.filter(item => !usedSelections.has(selectionKey(item.candidate)))
-    .filter((entry, index, all) => all.findIndex(other =>
-      other.candidate.player.toLowerCase() === entry.candidate.player.toLowerCase(),
-    ) === index).slice(0, 6);
+  const unique: EligibleEntry[] = [];
+  const exaggeratedPlayers = new Set<string>();
+  for (const entry of eligible) {
+    const player = normalizePlayerName(entry.candidate.player);
+    const market = playerMarketKey(entry.candidate);
+    if (usedPlayerMarkets.has(market) || exaggeratedPlayers.has(player)) continue;
+    usedPlayerMarkets.add(market);
+    exaggeratedPlayers.add(player);
+    unique.push(entry);
+    if (unique.length === 6) break;
+  }
   if (unique.length === 6) {
     const quotes = unique.map(bestAvailableQuote);
     const decimal = quotes.reduce((total, quote) => total * toDecimalOdds(quote.price), 1);

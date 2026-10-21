@@ -1,5 +1,6 @@
 import {
   analyzePlayerProp,
+  deduplicatePlayerPropCandidates,
   PlayerGameLog,
   PlayerPropCandidate,
   PlayerPropMarket,
@@ -292,20 +293,15 @@ export async function getDailyPlayerAnalysis(from: Date, to: Date): Promise<{
     }
   }
 
-  const selectedValue = (pick: PlayerPropCandidate) => pick.recommendationSide === 'Under'
-    ? pick.expectedValueUnder ?? -1
-    : pick.expectedValue ?? -1;
-  recommendations.sort((a, b) => Number(b.shortlistEligible) - Number(a.shortlistEligible)
-    || selectedValue(b) - selectedValue(a)
-    || Math.max(b.edge ?? -1, b.edgeUnder ?? -1) - Math.max(a.edge ?? -1, a.edgeUnder ?? -1));
+  const uniqueRecommendations = deduplicatePlayerPropCandidates(recommendations);
   return {
     configured: true,
     source: 'PropLine · plano grátis',
     fetchedAt: new Date().toISOString(),
     quotaRemaining: Number(response.headers.get('X-Daily-Remaining') || NaN) || undefined,
     analyzedPlayers: players.length,
-    recommendations,
-    message: recommendations.length ? undefined : 'Ainda não há props e históricos suficientes para estimar opções com a amostra mínima.',
+    recommendations: uniqueRecommendations,
+    message: uniqueRecommendations.length ? undefined : 'Ainda não há props e históricos suficientes para estimar opções com a amostra mínima.',
   };
 }
 

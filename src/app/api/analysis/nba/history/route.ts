@@ -67,8 +67,6 @@ export async function GET(request: NextRequest) {
     }
 
     const filters: SQL[] = [eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION)];
-    if (rawResult === 'pending') filters.push(sql`${playerPropForecasts.result} is null`);
-    else if (rawResult !== 'all') filters.push(eq(playerPropForecasts.result, rawResult as HistoryResultFilter));
     if (market) filters.push(eq(playerPropForecasts.market, market as PlayerPropMarket));
     if (team) filters.push(eq(playerPropForecasts.player_team, team));
     if (player) filters.push(eq(playerPropForecasts.player_name, player));
@@ -76,9 +74,9 @@ export async function GET(request: NextRequest) {
     if (through) filters.push(lte(playerPropForecasts.commence_time, through));
     filters.push(regularSeasonFilter);
     const where = and(...filters);
-
-    const [rows, [filteredCount], [summary], playerTeamFacets] = await Promise.all([
-      db.select({
+    const uniqueForecasts = db.selectDistinctOn(
+      [playerPropForecasts.event_id, playerPropForecasts.player_name, playerPropForecasts.market],
+      {
         id: playerPropForecasts.id,
         eventId: playerPropForecasts.event_id,
         player: playerPropForecasts.player_name,
@@ -88,6 +86,8 @@ export async function GET(request: NextRequest) {
         selection: playerPropForecasts.selection,
         projection: playerPropForecasts.projection,
         predictedProbability: playerPropForecasts.predicted_probability,
+        expectedValue: playerPropForecasts.expected_value,
+        shortlistEligible: playerPropForecasts.shortlist_eligible,
         americanOdds: playerPropForecasts.american_odds,
         bookmaker: playerPropForecasts.bookmaker,
         confidence: playerPropForecasts.confidence,
@@ -98,23 +98,57 @@ export async function GET(request: NextRequest) {
         result: playerPropForecasts.result,
         gradedAt: playerPropForecasts.graded_at,
         details: playerPropForecasts.details,
-      })
-        .from(playerPropForecasts)
-        .where(where)
-        .orderBy(desc(playerPropForecasts.commence_time), desc(playerPropForecasts.recorded_at))
-        .limit(limit)
-        .offset(offset),
-      db.select({ total: count() }).from(playerPropForecasts).where(where),
+      },
+    ).from(playerPropForecasts).where(where).orderBy(
+      playerPropForecasts.event_id,
+      playerPropForecasts.player_name,
+      playerPropForecasts.market,
+      desc(playerPropForecasts.shortlist_eligible),
+      sql`${playerPropForecasts.expected_value} desc nulls last`,
+      desc(playerPropForecasts.predicted_probability),
+      desc(playerPropForecasts.sample_size),
+      playerPropForecasts.recorded_at,
+    ).as('unique_player_prop_forecasts');
+    const resultFilters: SQL[] = [];
+    if (rawResult === 'pending') resultFilters.push(sql`${uniqueForecasts.result} is null`);
+    else if (rawResult !== 'all') resultFilters.push(eq(uniqueForecasts.result, rawResult as HistoryResultFilter));
+    const uniqueWhere = resultFilters.length ? and(...resultFilters) : undefined;
+
+    const [rows, [filteredCount], [summary], playerTeamFacets] = await Promise.all([
+      db.select({
+        id: uniqueForecasts.id,
+        eventId: uniqueForecasts.eventId,
+        player: uniqueForecasts.player,
+        playerTeam: uniqueForecasts.playerTeam,
+        market: uniqueForecasts.market,
+        line: uniqueForecasts.line,
+        selection: uniqueForecasts.selection,
+        projection: uniqueForecasts.projection,
+        predictedProbability: uniqueForecasts.predictedProbability,
+        americanOdds: uniqueForecasts.americanOdds,
+        bookmaker: uniqueForecasts.bookmaker,
+        confidence: uniqueForecasts.confidence,
+        sampleSize: uniqueForecasts.sampleSize,
+        commenceTime: uniqueForecasts.commenceTime,
+        recordedAt: uniqueForecasts.recordedAt,
+        actualValue: uniqueForecasts.actualValue,
+        result: uniqueForecasts.result,
+        gradedAt: uniqueForecasts.gradedAt,
+        details: uniqueForecasts.details,
+      }).from(uniqueForecasts).where(uniqueWhere)
+        .orderBy(desc(uniqueForecasts.commenceTime), desc(uniqueForecasts.recordedAt))
+        .limit(limit).offset(offset),
+      db.select({ total: count() }).from(uniqueForecasts).where(uniqueWhere),
       db.select({
         total: count(),
-        pending: sql<number>`count(*) filter (where ${playerPropForecasts.result} is null)`,
-        won: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'won')`,
-        lost: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'lost')`,
-        push: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'push')`,
-        void: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'void')`,
-        preseason: sql<number>`count(*) filter (where (${playerPropForecasts.commence_time} at time zone 'America/New_York')::date < ${NBA_REGULAR_SEASON_START}::date)`,
-        regular: sql<number>`count(*) filter (where (${playerPropForecasts.commence_time} at time zone 'America/New_York')::date >= ${NBA_REGULAR_SEASON_START}::date)`,
-      }).from(playerPropForecasts).where(where),
+        pending: sql<number>`count(*) filter (where ${uniqueForecasts.result} is null)`,
+        won: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'won')`,
+        lost: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'lost')`,
+        push: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'push')`,
+        void: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'void')`,
+        preseason: sql<number>`count(*) filter (where (${uniqueForecasts.commenceTime} at time zone 'America/New_York')::date < ${NBA_REGULAR_SEASON_START}::date)`,
+        regular: sql<number>`count(*) filter (where (${uniqueForecasts.commenceTime} at time zone 'America/New_York')::date >= ${NBA_REGULAR_SEASON_START}::date)`,
+      }).from(uniqueForecasts).where(uniqueWhere),
       db.selectDistinct({ team: playerPropForecasts.player_team, player: playerPropForecasts.player_name })
         .from(playerPropForecasts)
         .where(and(eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION), isNotNull(playerPropForecasts.player_team))),

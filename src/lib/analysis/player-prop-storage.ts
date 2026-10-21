@@ -1,4 +1,4 @@
-import { PlayerPropCandidate } from '@/lib/analysis/player-props';
+import { deduplicatePlayerPropCandidates, PlayerPropCandidate } from '@/lib/analysis/player-props';
 import { playerPropForecasts } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { getNbaSeasonPhase } from '@/lib/analysis/nba-season';
@@ -9,7 +9,7 @@ export async function storeUpcomingPlayerPropForecasts(candidates: PlayerPropCan
   if (!process.env.DATABASE_URL) return { enabled: false, saved: 0 };
 
   const now = Date.now();
-  const rows = candidates.flatMap((candidate) => {
+  const rows = deduplicatePlayerPropCandidates(candidates).flatMap((candidate) => {
     const commenceTime = new Date(candidate.commenceTime);
     const side = candidate.recommendationSide;
     if (!side || !Number.isFinite(commenceTime.getTime()) || commenceTime.getTime() <= now || getNbaSeasonPhase(commenceTime) !== 'regular') return [];

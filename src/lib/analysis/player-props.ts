@@ -79,6 +79,45 @@ export interface PlayerPropCandidate {
   contextNotes?: string[];
 }
 
+function normalizedPlayerKey(player: string): string {
+  return player.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function candidateEdge(candidate: PlayerPropCandidate): number {
+  return candidate.recommendationSide === 'Under'
+    ? candidate.edgeUnder ?? -1
+    : candidate.edge ?? -1;
+}
+
+function candidateExpectedValue(candidate: PlayerPropCandidate): number {
+  return candidate.recommendationSide === 'Under'
+    ? candidate.expectedValueUnder ?? -1
+    : candidate.expectedValue ?? -1;
+}
+
+function compareCandidateQuality(a: PlayerPropCandidate, b: PlayerPropCandidate): number {
+  return Number(b.shortlistEligible) - Number(a.shortlistEligible)
+    || candidateEdge(b) - candidateEdge(a)
+    || candidateExpectedValue(b) - candidateExpectedValue(a)
+    || Math.max(b.probabilityOver, b.probabilityUnder) - Math.max(a.probabilityOver, a.probabilityUnder)
+    || b.sampleSize - a.sampleSize;
+}
+
+/** Keeps one line per player, market, and game, choosing the strongest model recommendation. */
+export function deduplicatePlayerPropCandidates(candidates: PlayerPropCandidate[]): PlayerPropCandidate[] {
+  const strongestByProp = new Map<string, PlayerPropCandidate>();
+
+  for (const candidate of candidates) {
+    const key = `${candidate.gameId}:${normalizedPlayerKey(candidate.player)}:${candidate.market}`;
+    const current = strongestByProp.get(key);
+    if (!current || compareCandidateQuality(candidate, current) < 0) {
+      strongestByProp.set(key, candidate);
+    }
+  }
+
+  return Array.from(strongestByProp.values()).sort(compareCandidateQuality);
+}
+
 const STAT_FIELDS: Record<PlayerPropMarket, string[]> = {
   player_points: ['points'],
   player_rebounds: ['rebounds'],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyzePlayerProp, isSyntheticPickemBook, PlayerGameLog, resolvePlayerOpponent } from './player-props';
+import { analyzePlayerProp, deduplicatePlayerPropCandidates, isSyntheticPickemBook, PlayerGameLog, PlayerPropCandidate, resolvePlayerOpponent } from './player-props';
 
 describe('resolvePlayerOpponent', () => {
   it('uses the player team to select the actual opponent independent of home or away', () => {
@@ -84,5 +84,55 @@ describe('analyzePlayerProp matchup validation', () => {
   it('drops props when the latest player team is outside the scheduled matchup', () => {
     const candidate = analyzePlayerProp(input(makeLogs('Philadelphia 76ers')));
     expect(candidate).toBeNull();
+  });
+});
+
+describe('deduplicatePlayerPropCandidates', () => {
+  const candidate = (overrides: Partial<PlayerPropCandidate> = {}): PlayerPropCandidate => ({
+    id: 'pick-1',
+    gameId: 'game-1',
+    game: 'Oklahoma City Thunder @ San Antonio Spurs',
+    commenceTime: '2026-10-21T23:00:00Z',
+    player: 'Julian Champagnie',
+    market: 'player_points',
+    line: 9.5,
+    projection: 10,
+    probabilityOver: 0.58,
+    probabilityUnder: 0.42,
+    quotes: [],
+    edge: 0.08,
+    expectedValue: 0.1,
+    recommendationSide: 'Over',
+    sampleSize: 15,
+    shortlistEligible: true,
+    last5Average: 10,
+    last10Average: 10,
+    last20Average: 10,
+    teamVerified: true,
+    confidence: 'moderada',
+    reasons: [],
+    limitations: [],
+    ...overrides,
+  });
+
+  it('keeps only the strongest line for the same player, market, and game', () => {
+    const weakerLine = candidate({ id: 'line-8-5', line: 8.5, edge: 0.03, expectedValue: 0.05 });
+    const strongerLine = candidate({ id: 'line-9-5', line: 9.5, edge: 0.12, expectedValue: 0.08 });
+
+    expect(deduplicatePlayerPropCandidates([weakerLine, strongerLine])).toEqual([strongerLine]);
+  });
+
+  it('keeps the same player in different markets and games', () => {
+    const rebounds = candidate({ id: 'rebounds', market: 'player_rebounds' });
+    const nextGame = candidate({ id: 'next-game', gameId: 'game-2' });
+
+    expect(deduplicatePlayerPropCandidates([candidate(), rebounds, nextGame])).toHaveLength(3);
+  });
+
+  it('normalizes player names before checking duplicates', () => {
+    const accented = candidate({ player: 'Julián Champagnie', id: 'accented', edge: 0.04 });
+    const plain = candidate({ player: 'Julian Champagnie', id: 'plain', edge: 0.1 });
+
+    expect(deduplicatePlayerPropCandidates([accented, plain])).toEqual([plain]);
   });
 });

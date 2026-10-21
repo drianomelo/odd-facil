@@ -1,6 +1,7 @@
 require('dotenv').config({ path: '.env.local' });
 
-const baseUrl = (process.env.ODD_FACIL_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+const port = process.env.PORT || '3000';
+const baseUrl = (process.env.ODD_FACIL_BASE_URL || `http://localhost:${port}`).replace(/\/$/, '');
 const cronSecret = process.env.CRON_SECRET;
 
 if (!cronSecret) {
@@ -9,15 +10,25 @@ if (!cronSecret) {
 }
 
 async function run() {
-  const response = await fetch(`${baseUrl}/api/cron/grade-player-props`, {
+  const cronUrl = `${baseUrl}/api/cron/grade-player-props`;
+  console.log(`Chamando rotina em: ${cronUrl}`);
+  const response = await fetch(cronUrl, {
     headers: { Authorization: `Bearer ${cronSecret}` },
   });
-  const body = await response.json().catch(() => ({}));
+  const responseText = await response.text();
+  let body = {};
+  try { body = responseText ? JSON.parse(responseText) : {}; } catch { body = { response: responseText.slice(0, 300) }; }
 
   console.log(`Apuração: HTTP ${response.status}`);
   console.log(JSON.stringify(body, null, 2));
 
-  if (!response.ok || body.success !== true || body.errors > 0) process.exitCode = 1;
+  if (!response.ok || body.success !== true || body.errors > 0) {
+    if (response.status === 404) {
+      console.error('A rota não existe nesse endereço. Confira se o npm run dev está ligado na mesma porta. Se estiver em 3001, use $env:ODD_FACIL_BASE_URL="http://localhost:3001" antes de rodar a rotina.');
+    }
+    process.exitCode = 1;
+    return;
+  }
 
   const historyResponse = await fetch(
     `${baseUrl}/api/analysis/nba/history?phase=preseason&limit=100`,

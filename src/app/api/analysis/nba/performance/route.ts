@@ -27,70 +27,102 @@ export async function GET(request: NextRequest) {
     if (team) filters.push(eq(playerPropForecasts.player_team, team));
     if (player) filters.push(eq(playerPropForecasts.player_name, player));
     const where = and(...filters);
+    const uniqueForecasts = db.selectDistinctOn(
+      [playerPropForecasts.event_id, playerPropForecasts.player_name, playerPropForecasts.market],
+      {
+        id: playerPropForecasts.id,
+        eventId: playerPropForecasts.event_id,
+        player: playerPropForecasts.player_name,
+        playerTeam: playerPropForecasts.player_team,
+        market: playerPropForecasts.market,
+        line: playerPropForecasts.line,
+        selection: playerPropForecasts.selection,
+        projection: playerPropForecasts.projection,
+        predictedProbability: playerPropForecasts.predicted_probability,
+        marketProbability: playerPropForecasts.market_probability,
+        expectedValue: playerPropForecasts.expected_value,
+        shortlistEligible: playerPropForecasts.shortlist_eligible,
+        americanOdds: playerPropForecasts.american_odds,
+        bookmaker: playerPropForecasts.bookmaker,
+        actualValue: playerPropForecasts.actual_value,
+        result: playerPropForecasts.result,
+        commenceTime: playerPropForecasts.commence_time,
+        gradedAt: playerPropForecasts.graded_at,
+        recordedAt: playerPropForecasts.recorded_at,
+        details: playerPropForecasts.details,
+      },
+    ).from(playerPropForecasts).where(where).orderBy(
+      playerPropForecasts.event_id,
+      playerPropForecasts.player_name,
+      playerPropForecasts.market,
+      desc(playerPropForecasts.shortlist_eligible),
+      sql`${playerPropForecasts.expected_value} desc nulls last`,
+      desc(playerPropForecasts.predicted_probability),
+      desc(playerPropForecasts.sample_size),
+      playerPropForecasts.recorded_at,
+    ).as('unique_player_prop_forecasts');
     const [[row], recentRows, playerTeamFacets] = await Promise.all([db.select({
       total: count(),
-      pending: sql<number>`count(*) filter (where ${playerPropForecasts.result} is null)`,
-      settled: sql<number>`count(*) filter (where ${playerPropForecasts.result} in ('won', 'lost', 'push', 'void'))`,
-      wins: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'won')`,
-      losses: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'lost')`,
-      pushes: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'push')`,
-      voids: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'void')`,
-      gradedBets: sql<number>`count(*) filter (where ${playerPropForecasts.result} in ('won', 'lost'))`,
-      betsWithOdds: sql<number>`count(*) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.american_odds} is not null)`,
-      brierScore: sql<number>`avg(power(${playerPropForecasts.predicted_probability} - case when ${playerPropForecasts.result} = 'won' then 1 else 0 end, 2)) filter (where ${playerPropForecasts.result} in ('won', 'lost'))`,
+      pending: sql<number>`count(*) filter (where ${uniqueForecasts.result} is null)`,
+      settled: sql<number>`count(*) filter (where ${uniqueForecasts.result} in ('won', 'lost', 'push', 'void'))`,
+      wins: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'won')`,
+      losses: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'lost')`,
+      pushes: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'push')`,
+      voids: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'void')`,
+      gradedBets: sql<number>`count(*) filter (where ${uniqueForecasts.result} in ('won', 'lost'))`,
+      betsWithOdds: sql<number>`count(*) filter (where ${uniqueForecasts.result} in ('won', 'lost') and ${uniqueForecasts.americanOdds} is not null)`,
+      brierScore: sql<number>`avg(power(${uniqueForecasts.predictedProbability} - case when ${uniqueForecasts.result} = 'won' then 1 else 0 end, 2)) filter (where ${uniqueForecasts.result} in ('won', 'lost'))`,
       netUnits: sql<number>`coalesce(sum(case
-        when ${playerPropForecasts.result} = 'won' and ${playerPropForecasts.american_odds} > 0 then ${playerPropForecasts.american_odds}::numeric / 100
-        when ${playerPropForecasts.result} = 'won' and ${playerPropForecasts.american_odds} < 0 then 100::numeric / abs(${playerPropForecasts.american_odds})
-        when ${playerPropForecasts.result} = 'lost' and ${playerPropForecasts.american_odds} is not null then -1
+        when ${uniqueForecasts.result} = 'won' and ${uniqueForecasts.americanOdds} > 0 then ${uniqueForecasts.americanOdds}::numeric / 100
+        when ${uniqueForecasts.result} = 'won' and ${uniqueForecasts.americanOdds} < 0 then 100::numeric / abs(${uniqueForecasts.americanOdds})
+        when ${uniqueForecasts.result} = 'lost' and ${uniqueForecasts.americanOdds} is not null then -1
         else 0 end), 0)`,
-    }).from(playerPropForecasts).where(where), db.select({
-      id: playerPropForecasts.id,
-      eventId: playerPropForecasts.event_id,
-      player: playerPropForecasts.player_name,
-      playerTeam: playerPropForecasts.player_team,
-      market: playerPropForecasts.market,
-      line: playerPropForecasts.line,
-      selection: playerPropForecasts.selection,
-      projection: playerPropForecasts.projection,
-      predictedProbability: playerPropForecasts.predicted_probability,
-      americanOdds: playerPropForecasts.american_odds,
-      bookmaker: playerPropForecasts.bookmaker,
-      actualValue: playerPropForecasts.actual_value,
-      result: playerPropForecasts.result,
-      commenceTime: playerPropForecasts.commence_time,
-      gradedAt: playerPropForecasts.graded_at,
-      details: playerPropForecasts.details,
-    }).from(playerPropForecasts).where(and(
-      where,
-      inArray(playerPropForecasts.result, ['won', 'lost', 'push', 'void']),
-    )).orderBy(desc(playerPropForecasts.graded_at), desc(playerPropForecasts.commence_time)).limit(50),
+    }).from(uniqueForecasts), db.select({
+      id: uniqueForecasts.id,
+      eventId: uniqueForecasts.eventId,
+      player: uniqueForecasts.player,
+      playerTeam: uniqueForecasts.playerTeam,
+      market: uniqueForecasts.market,
+      line: uniqueForecasts.line,
+      selection: uniqueForecasts.selection,
+      projection: uniqueForecasts.projection,
+      predictedProbability: uniqueForecasts.predictedProbability,
+      americanOdds: uniqueForecasts.americanOdds,
+      bookmaker: uniqueForecasts.bookmaker,
+      actualValue: uniqueForecasts.actualValue,
+      result: uniqueForecasts.result,
+      commenceTime: uniqueForecasts.commenceTime,
+      gradedAt: uniqueForecasts.gradedAt,
+      details: uniqueForecasts.details,
+    }).from(uniqueForecasts).where(
+      inArray(uniqueForecasts.result, ['won', 'lost', 'push', 'void']),
+    ).orderBy(desc(uniqueForecasts.gradedAt), desc(uniqueForecasts.commenceTime)).limit(50),
     db.selectDistinct({ team: playerPropForecasts.player_team, player: playerPropForecasts.player_name })
       .from(playerPropForecasts)
       .where(and(eq(playerPropForecasts.model_version, PLAYER_PROP_MODEL_VERSION), regularSeasonOnly, isNotNull(playerPropForecasts.player_team)))
     ]);
 
     const marketRows = await db.select({
-      market: playerPropForecasts.market,
+      market: uniqueForecasts.market,
       total: count(),
-      pending: sql<number>`count(*) filter (where ${playerPropForecasts.result} is null)`,
-      settled: sql<number>`count(*) filter (where ${playerPropForecasts.result} in ('won', 'lost', 'push', 'void'))`,
-      wins: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'won')`,
-      losses: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'lost')`,
-      pushes: sql<number>`count(*) filter (where ${playerPropForecasts.result} = 'push')`,
-      meanAbsoluteError: sql<number>`avg(abs(${playerPropForecasts.actual_value} - ${playerPropForecasts.projection})) filter (where ${playerPropForecasts.actual_value} is not null)`,
-      validationSample: sql<number>`count(*) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.market_probability} is not null)`,
-      validationGameDays: sql<number>`count(distinct (${playerPropForecasts.commence_time} at time zone 'America/New_York')::date) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.market_probability} is not null)`,
-      brierScore: sql<number>`avg(power(${playerPropForecasts.predicted_probability} - case when ${playerPropForecasts.result} = 'won' then 1 else 0 end, 2)) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.market_probability} is not null)`,
-      marketBrierScore: sql<number>`avg(power(${playerPropForecasts.market_probability} - case when ${playerPropForecasts.result} = 'won' then 1 else 0 end, 2)) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.market_probability} is not null)`,
-      betsWithOdds: sql<number>`count(*) filter (where ${playerPropForecasts.result} in ('won', 'lost') and ${playerPropForecasts.american_odds} is not null)`,
+      pending: sql<number>`count(*) filter (where ${uniqueForecasts.result} is null)`,
+      settled: sql<number>`count(*) filter (where ${uniqueForecasts.result} in ('won', 'lost', 'push', 'void'))`,
+      wins: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'won')`,
+      losses: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'lost')`,
+      pushes: sql<number>`count(*) filter (where ${uniqueForecasts.result} = 'push')`,
+      meanAbsoluteError: sql<number>`avg(abs(${uniqueForecasts.actualValue} - ${uniqueForecasts.projection})) filter (where ${uniqueForecasts.actualValue} is not null)`,
+      validationSample: sql<number>`count(*) filter (where ${uniqueForecasts.result} in ('won', 'lost') and ${uniqueForecasts.marketProbability} is not null)`,
+      validationGameDays: sql<number>`count(distinct (${uniqueForecasts.commenceTime} at time zone 'America/New_York')::date) filter (where ${uniqueForecasts.result} in ('won', 'lost') and ${uniqueForecasts.marketProbability} is not null)`,
+      brierScore: sql<number>`avg(power(${uniqueForecasts.predictedProbability} - case when ${uniqueForecasts.result} = 'won' then 1 else 0 end, 2)) filter (where ${uniqueForecasts.result} in ('won', 'lost') and ${uniqueForecasts.marketProbability} is not null)`,
+      marketBrierScore: sql<number>`avg(power(${uniqueForecasts.marketProbability} - case when ${uniqueForecasts.result} = 'won' then 1 else 0 end, 2)) filter (where ${uniqueForecasts.result} in ('won', 'lost') and ${uniqueForecasts.marketProbability} is not null)`,
+      betsWithOdds: sql<number>`count(*) filter (where ${uniqueForecasts.result} in ('won', 'lost') and ${uniqueForecasts.americanOdds} is not null)`,
       netUnits: sql<number>`coalesce(sum(case
-        when ${playerPropForecasts.result} = 'won' and ${playerPropForecasts.american_odds} > 0 then ${playerPropForecasts.american_odds}::numeric / 100
-        when ${playerPropForecasts.result} = 'won' and ${playerPropForecasts.american_odds} < 0 then 100::numeric / abs(${playerPropForecasts.american_odds})
-        when ${playerPropForecasts.result} = 'lost' and ${playerPropForecasts.american_odds} is not null then -1
+        when ${uniqueForecasts.result} = 'won' and ${uniqueForecasts.americanOdds} > 0 then ${uniqueForecasts.americanOdds}::numeric / 100
+        when ${uniqueForecasts.result} = 'won' and ${uniqueForecasts.americanOdds} < 0 then 100::numeric / abs(${uniqueForecasts.americanOdds})
+        when ${uniqueForecasts.result} = 'lost' and ${uniqueForecasts.americanOdds} is not null then -1
         else 0 end), 0)`,
-    }).from(playerPropForecasts)
-      .where(where)
-      .groupBy(playerPropForecasts.market);
+    }).from(uniqueForecasts)
+      .groupBy(uniqueForecasts.market);
 
     const settled = Number(row?.settled || 0);
     const decisive = Number(row?.wins || 0) + Number(row?.losses || 0);
