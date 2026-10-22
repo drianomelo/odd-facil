@@ -28,8 +28,12 @@ const nbaPlayerIds: Record<string, string> = {
   "james harden": "201935",
   "karl-anthony towns": "1626157",
   "bam adebayo": "1628389",
+  "demar derozan": "201942",
+  "tyrese maxey": "1630178",
   "jaylen brown": "1627759",
+  "anfernee simons": "1629014",
   "jamal murray": "1627750",
+  "jaden mcdaniels": "1630183",
   "darius garland": "1629636",
   "jarrett allen": "1628386",
   "mikal bridges": "1628969",
@@ -50,10 +54,21 @@ const nbaPlayerIds: Record<string, string> = {
   "fred vanvleet": "1627832",
   "naz reid": "1629675",
   "daniss jenkins": "1642450",
+  "luguentz dort": "1629652",
+  "jamal shead": "1642347",
+  "kelel ware": "1642276",
+  "darryn peterson": "1643408",
+  "ausar thompson": "1641709",
+  "dylan harper": "1642844",
+  "keldon johnson": "1629640",
   "payton pritchard": "1630202",
   "ajay mitchell": "1642349",
   "og anunoby": "1628384",
   "jalen duren": "1631105",
+  "jaime jaquez": "1631170",
+  "nickeil alexander-walker": "1629638",
+  "domantas sabonis": "1627734",
+  "amen thompson": "1641708",
 };
 
 function normalizePlayerName(name: string): string {
@@ -89,7 +104,6 @@ export function PlayerAvatar({
       aria-hidden="true"
       className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-court-border bg-[#163875] font-semibold text-white ${sizeClass}`}
     >
-      <span className="text-xs">{initials}</span>
       {playerId && (
         <img
           src={`https://cdn.nba.com/headshots/nba/latest/260x190/${playerId}.png`}
