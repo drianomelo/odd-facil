@@ -9,7 +9,8 @@ const HEADERS = { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0' };
 
 function normalize(value: unknown) {
   const name = String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  return name === 'losangelesclippers' ? 'laclippers' : name;
+  const withoutNameSuffix = name.replace(/(?:jr|sr|ii|iii|iv|v)$/, '');
+  return withoutNameSuffix === 'losangelesclippers' ? 'laclippers' : withoutNameSuffix;
 }
 
 function appDate(offsetDays: number) {

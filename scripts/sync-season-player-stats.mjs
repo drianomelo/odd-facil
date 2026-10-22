@@ -57,7 +57,8 @@ function made(value) {
 
 function normalize(value) {
   const normalized = String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  return normalized === 'losangelesclippers' ? 'laclippers' : normalized;
+  const withoutNameSuffix = normalized.replace(/(?:jr|sr|ii|iii|iv|v)$/, '');
+  return withoutNameSuffix === 'losangelesclippers' ? 'laclippers' : withoutNameSuffix;
 }
 
 function seasonPickActual(market, row) {
