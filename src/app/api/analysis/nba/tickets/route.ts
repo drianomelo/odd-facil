@@ -33,7 +33,7 @@ const bodySchema = z.object({
   stakeAmount: z.number().finite().min(0).max(1000000).default(0),
   combinedDecimalOdds: z.number().finite().positive().max(100000).optional(),
   potentialReturn: z.number().finite().min(0).max(1000000000).optional(),
-  legs: z.array(legSchema).min(1).max(10),
+  legs: z.array(legSchema).min(1).max(20),
 });
 
 function normalizedBook(value: string): string {

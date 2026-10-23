@@ -69,6 +69,19 @@ const nbaPlayerIds: Record<string, string> = {
   "nickeil alexander-walker": "1629638",
   "domantas sabonis": "1627734",
   "amen thompson": "1641708",
+  "alex sarr": "1642259",
+  "anthony davis": "203076",
+  "draymond green": "203110",
+  "duncan robinson": "1629130",
+  "grayson allen": "1628960",
+  "jabari smith jr": "1631095",
+  "jaime jaquez jr": "1631170",
+  "jalen johnson": "1630552",
+  "kasparas jakucionis": "1642857",
+  "lauri markkanen": "1628374",
+  "pascal siakam": "1627783",
+  "rui hachimura": "1629060",
+  "zach lavine": "203897",
 };
 
 function normalizePlayerName(name: string): string {
