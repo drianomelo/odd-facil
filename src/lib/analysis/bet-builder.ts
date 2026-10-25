@@ -155,7 +155,8 @@ export function buildSuggestedTickets(candidates: PlayerPropCandidate[]): Sugges
 
   const pairPool = eligible.filter(entry => !usedPlayerMarkets.has(playerMarketKey(entry.candidate))).slice(0, 80);
   const pair = pairPool.length
-    ? [pairPool[0], pairPool.find(entry => normalizePlayerName(entry.candidate.player) !== normalizePlayerName(pairPool[0].candidate.player))]
+    ? [pairPool[0], pairPool.find(entry => entry.candidate.gameId !== pairPool[0].candidate.gameId
+      && normalizePlayerName(entry.candidate.player) !== normalizePlayerName(pairPool[0].candidate.player))]
         .filter((entry): entry is EligibleEntry => !!entry)
     : [];
   const pairQuotes = pair.map(bestAvailableQuote);
@@ -170,12 +171,15 @@ export function buildSuggestedTickets(candidates: PlayerPropCandidate[]): Sugges
 
   const unique: EligibleEntry[] = [];
   const exaggeratedPlayers = new Set<string>();
+  const exaggeratedGames = new Set<string>();
   for (const entry of eligible) {
     const player = normalizePlayerName(entry.candidate.player);
     const market = playerMarketKey(entry.candidate);
-    if (usedPlayerMarkets.has(market) || exaggeratedPlayers.has(player)) continue;
+    const game = entry.candidate.gameId;
+    if (usedPlayerMarkets.has(market) || exaggeratedPlayers.has(player) || exaggeratedGames.has(game)) continue;
     usedPlayerMarkets.add(market);
     exaggeratedPlayers.add(player);
+    exaggeratedGames.add(game);
     unique.push(entry);
     if (unique.length === 6) break;
   }

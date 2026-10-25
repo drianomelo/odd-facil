@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { games, playerGameStats, playerPropForecasts, playerPropTicketLegs, playerPropTickets, teams } from '@/lib/db/schema';
 import { PLAYER_PROP_MODEL_VERSION } from '@/lib/analysis/player-prop-storage';
+import { BETBY_PLAYER_PROP_MARKETS } from '@/lib/analysis/player-props';
 import { getTicketOutcome } from '@/lib/analysis/ticket-result';
 import { gradePlayerProp } from '@/lib/analysis/player-prop-grading';
 import { NBA_PREDICTIONS_ENABLED } from '@/lib/analysis/prediction-controls';
@@ -13,7 +14,7 @@ import { oddsApiClient } from '@/lib/api/odds-api';
 
 export const dynamic = 'force-dynamic';
 
-const MARKET_VALUES = ['player_points', 'player_rebounds', 'player_assists', 'player_threes', 'player_points_rebounds_assists'] as const;
+const MARKET_VALUES = BETBY_PLAYER_PROP_MARKETS;
 const legSchema = z.object({
   eventId: z.string().min(1).max(100),
   player: z.string().min(1).max(100),

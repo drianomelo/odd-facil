@@ -2,16 +2,11 @@ import { NextResponse } from 'next/server';
 import { and, eq, gte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { playerGameStats, playerPropTicketLegs, playerPropTickets } from '@/lib/db/schema';
+import { BETBY_PLAYER_PROP_MARKETS } from '@/lib/analysis/player-props';
 
 export const dynamic = 'force-dynamic';
 
-const MARKETS = [
-  'player_points',
-  'player_rebounds',
-  'player_assists',
-  'player_threes',
-  'player_points_rebounds_assists',
-] as const;
+const MARKETS = BETBY_PLAYER_PROP_MARKETS;
 
 function currentSeason(start: string) {
   const year = Number(start.slice(0, 4));

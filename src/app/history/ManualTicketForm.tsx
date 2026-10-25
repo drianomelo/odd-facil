@@ -21,7 +21,6 @@ const MARKETS: Array<{ id: PlayerPropMarket; label: string }> = [
   { id: 'player_rebounds', label: 'Rebotes' },
   { id: 'player_assists', label: 'Assistências' },
   { id: 'player_threes', label: 'Cestas de 3' },
-  { id: 'player_points_rebounds_assists', label: 'Pontos + rebotes + assistências' },
 ];
 
 function emptyLeg(eventId = ''): LegDraft {

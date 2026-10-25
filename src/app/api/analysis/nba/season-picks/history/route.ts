@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { and, count, desc, eq, ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { seasonPlayerPicks } from '@/lib/db/schema';
+import { SEASON_PLAYER_PICK_MODEL_VERSION } from '@/lib/analysis/season-player-pick-storage';
 
 export const dynamic = 'force-dynamic';
-
-const MODEL_VERSION = 'season-average-v2';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,11 +14,11 @@ export async function GET(request: NextRequest) {
     const [rows, archivedCount] = await Promise.all([
       db.select().from(seasonPlayerPicks).where(and(
         eq(seasonPlayerPicks.season, season),
-        eq(seasonPlayerPicks.model_version, MODEL_VERSION),
+        eq(seasonPlayerPicks.model_version, SEASON_PLAYER_PICK_MODEL_VERSION),
       )).orderBy(desc(seasonPlayerPicks.commence_time), desc(seasonPlayerPicks.recorded_at)),
       db.select({ total: count() }).from(seasonPlayerPicks).where(and(
         eq(seasonPlayerPicks.season, season),
-        ne(seasonPlayerPicks.model_version, MODEL_VERSION),
+        ne(seasonPlayerPicks.model_version, SEASON_PLAYER_PICK_MODEL_VERSION),
       )),
     ]);
     const params = request.nextUrl.searchParams;

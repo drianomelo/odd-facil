@@ -7,6 +7,15 @@ export type PlayerPropMarket =
   | 'player_threes'
   | 'player_points_rebounds_assists';
 
+// The active market set is limited to the four player markets visible in the
+// user's Betby slips. PRA remains in PlayerPropMarket for grading older records.
+export const BETBY_PLAYER_PROP_MARKETS = [
+  'player_points',
+  'player_rebounds',
+  'player_assists',
+  'player_threes',
+] as const satisfies readonly PlayerPropMarket[];
+
 export interface PlayerGameLog {
   event_id?: string;
   commence_time: string;

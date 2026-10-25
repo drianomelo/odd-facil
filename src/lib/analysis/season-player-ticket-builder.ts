@@ -30,10 +30,12 @@ function rankPicks(picks: SeasonPlayerPick[]) {
 function uniquePlayers(picks: SeasonPlayerPick[], count: number) {
   const selected: SeasonPlayerPick[] = [];
   const seen = new Set<string>();
+  const seenGames = new Set<string>();
   for (const pick of rankPicks(picks)) {
     const player = normalizePlayer(pick.player);
-    if (seen.has(player)) continue;
+    if (seen.has(player) || seenGames.has(pick.gameId)) continue;
     seen.add(player);
+    seenGames.add(pick.gameId);
     selected.push(pick);
     if (selected.length === count) break;
   }
@@ -44,7 +46,7 @@ function playerMarketKey(pick: SeasonPlayerPick) {
   return `${normalizePlayer(pick.player)}:${pick.market}`;
 }
 
-/** Builds combinations from already stored season-only signals. It never invents odds or probabilities. */
+/** Builds combinations from stored season-only signals, with at most one pick per game. */
 export function buildSeasonSuggestedTickets(picks: SeasonPlayerPick[]): SeasonSuggestedTicket[] {
   const ranked = rankPicks(picks);
   const tickets: SeasonSuggestedTicket[] = [];

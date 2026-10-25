@@ -8,6 +8,7 @@ import { StatsSummary } from "@/components/StatsSummary";
 import { headers } from "next/headers";
 import { propMarketLabel } from "@/lib/api/propline";
 import {
+  BETBY_PLAYER_PROP_MARKETS,
   PlayerPropCandidate,
   PlayerPropMarket,
   selectDailyPlayerPropShortlist,
@@ -259,32 +260,6 @@ const STATIC_PICKS: PlayerPropCandidate[] = [
     last10: 4.9,
     last20: 4.8,
   }),
-  makeStaticPick({
-    id: "demo-luka-pra",
-    gameId: "demo-game-9",
-    game: "Los Angeles Lakers @ Phoenix Suns",
-    player: "Luka Dončić",
-    market: "player_points_rebounds_assists",
-    line: 44.5,
-    projection: 46.2,
-    side: "Over",
-    last5: 47.0,
-    last10: 45.8,
-    last20: 45.2,
-  }),
-  makeStaticPick({
-    id: "demo-jokic-pra",
-    gameId: "demo-game-10",
-    game: "Denver Nuggets @ Minnesota Timberwolves",
-    player: "Nikola Jokić",
-    market: "player_points_rebounds_assists",
-    line: 52.5,
-    projection: 54.0,
-    side: "Over",
-    last5: 55.1,
-    last10: 53.8,
-    last20: 53.2,
-  }),
 ];
 
 const STATIC_DASHBOARD_DATA: DashboardData = {
@@ -463,13 +438,7 @@ export async function DashboardContent() {
   const scheduledGames = data.games_today.filter(
     (g) => g.status === "scheduled" && !isGameStarted(g.commence_time),
   );
-  const propMarkets: PlayerPropMarket[] = [
-    "player_points",
-    "player_rebounds",
-    "player_assists",
-    "player_threes",
-    "player_points_rebounds_assists",
-  ];
+  const propMarkets: PlayerPropMarket[] = [...BETBY_PLAYER_PROP_MARKETS];
   const selectedExpectedValue = (pick: PlayerPropCandidate) =>
     pick.recommendationSide === "Under"
       ? (pick.expectedValueUnder ?? -1)

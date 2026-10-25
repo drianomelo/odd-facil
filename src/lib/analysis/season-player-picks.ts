@@ -13,6 +13,7 @@ export interface SeasonPlayerGame {
   team: string;
   opponent: string;
   played: boolean;
+  minutes?: number | string;
   points: number;
   rebounds: number;
   assists: number;
@@ -54,6 +55,9 @@ const STAT_BY_MARKET: Record<SeasonPickMarket, (game: SeasonPlayerGame) => numbe
 };
 
 const MARKETS = Object.keys(STAT_BY_MARKET) as SeasonPickMarket[];
+const ROTATION_SAMPLE_SIZE = 10;
+const MIN_ROTATION_AVERAGE_MINUTES = 10;
+const MAX_ROTATION_PLAYERS_PER_TEAM = 8;
 
 function normalize(value: string) {
   const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -69,11 +73,13 @@ export function buildSeasonPlayerPicks(input: {
   games: SeasonScheduleGame[];
   logs: SeasonPlayerGame[];
   personalByMarket: Record<SeasonPickMarket, { wins: number; losses: number; total: number }>;
+  markets?: SeasonPickMarket[];
   maxPerGame?: number;
   minSampleSize?: number;
   now?: Date;
 }): SeasonPlayerPick[] {
   const candidates: SeasonPlayerPick[] = [];
+  const markets = input.markets?.length ? input.markets : MARKETS;
   const now = input.now || new Date();
   const logsByPlayer = new Map<string, SeasonPlayerGame[]>();
   for (const log of input.logs) {
@@ -94,32 +100,53 @@ export function buildSeasonPlayerPicks(input: {
       const latest = prior[0];
       const teamKey = latest ? normalize(latest.team) : '';
       return latest && (teamKey === homeKey || teamKey === awayKey)
-        ? [{ playerId, rows: prior, latest }]
+        ? [{ playerId, rows: prior, latest, teamKey }]
         : [];
     });
 
+    // Betby lists at most eight players per team. Keep only the established
+    // rotation: recent average minutes must be at least 10, then take each
+    // team's eight highest minute averages for this matchup.
+    const rotationByTeam = new Map<string, typeof eligible>();
     for (const player of eligible) {
-      for (const market of MARKETS) {
+      const sample = player.rows.slice(0, ROTATION_SAMPLE_SIZE);
+      const averageMinutes = mean(sample.map(row => Number(row.minutes) || 0));
+      if (averageMinutes < MIN_ROTATION_AVERAGE_MINUTES) continue;
+      const teamPlayers = rotationByTeam.get(player.teamKey) || [];
+      teamPlayers.push(player);
+      rotationByTeam.set(player.teamKey, teamPlayers);
+    }
+    const rotationPlayerIds = new Set(Array.from(rotationByTeam.values()).flatMap(teamPlayers =>
+      teamPlayers
+        .sort((a, b) => mean(b.rows.slice(0, ROTATION_SAMPLE_SIZE).map(row => Number(row.minutes) || 0))
+          - mean(a.rows.slice(0, ROTATION_SAMPLE_SIZE).map(row => Number(row.minutes) || 0)))
+        .slice(0, MAX_ROTATION_PLAYERS_PER_TEAM)
+        .map(player => player.playerId)));
+
+    for (const player of eligible) {
+      if (!rotationPlayerIds.has(player.playerId)) continue;
+      for (const market of markets) {
         const valueFor = STAT_BY_MARKET[market];
         const values = player.rows.map(valueFor).filter(Number.isFinite);
-        // One appearance cannot establish a useful direction: with a line derived
-        // from that same appearance it mechanically makes every pick an Under.
+        // One appearance cannot establish a trend against earlier games.
         if (values.length < (input.minSampleSize ?? 2)) continue;
         const seasonAverage = mean(values);
         const line = Math.floor(seasonAverage) + 0.5;
         const overHits = values.filter(value => value > line).length;
         const underHits = values.filter(value => value < line).length;
-        let side: 'Over' | 'Under';
-        if (overHits > underHits) side = 'Over';
-        else if (underHits > overHits) side = 'Under';
-        else {
-          const latestValue = valueFor(player.latest);
-          if (latestValue > seasonAverage) side = 'Over';
-          else if (latestValue < seasonAverage) side = 'Under';
-          else continue;
-        }
-        const hits = side === 'Over' ? overHits : underHits;
+        // The old rule picked whichever side occurred more often around the
+        // season mean. Since player stats are right-skewed, that mechanically
+        // favored Under even when recent form was improving. Compare the last
+        // five appearances with the earlier sample instead; do not force a side
+        // when there is no directional change.
         const recent = values.slice(0, 5);
+        const older = values.length > recent.length ? values.slice(recent.length) : values.slice(1);
+        if (!older.length) continue;
+        const recentAverage = mean(recent);
+        const olderAverage = mean(older);
+        if (Math.abs(recentAverage - olderAverage) < 1e-9) continue;
+        const side: 'Over' | 'Under' = recentAverage > olderAverage ? 'Over' : 'Under';
+        const hits = side === 'Over' ? overHits : underHits;
         const personalRecord = input.personalByMarket[market] || { wins: 0, losses: 0, total: 0 };
         candidates.push({
           id: `${fixture.id}:${player.playerId}:${market}`,
@@ -133,7 +160,7 @@ export function buildSeasonPlayerPicks(input: {
           line,
           side,
           seasonAverage,
-          last5Average: mean(recent),
+          last5Average: recentAverage,
           hits,
           sampleSize: values.length,
           observedRate: hits / values.length,
@@ -143,7 +170,7 @@ export function buildSeasonPlayerPicks(input: {
     }
   }
 
-  const maxPerGame = input.maxPerGame ?? MARKETS.length;
+  const maxPerGame = input.maxPerGame ?? markets.length;
   candidates.sort((a, b) => b.observedRate - a.observedRate
     || b.sampleSize - a.sampleSize
     || Math.abs(a.seasonAverage - a.line) - Math.abs(b.seasonAverage - b.line)

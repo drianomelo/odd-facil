@@ -1,5 +1,6 @@
 import {
   analyzePlayerProp,
+  BETBY_PLAYER_PROP_MARKETS,
   deduplicatePlayerPropCandidates,
   PlayerGameLog,
   PlayerPropCandidate,
@@ -12,13 +13,7 @@ import {
 import { getNbaSeasonPhase } from '@/lib/analysis/nba-season';
 
 const BASE_URL = 'https://api.prop-line.com/v1/sports/basketball_nba';
-const MARKETS: PlayerPropMarket[] = [
-  'player_points',
-  'player_rebounds',
-  'player_assists',
-  'player_threes',
-  'player_points_rebounds_assists',
-];
+const MARKETS: PlayerPropMarket[] = [...BETBY_PLAYER_PROP_MARKETS];
 
 type JsonRecord = Record<string, any>;
 

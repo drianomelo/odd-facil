@@ -51,7 +51,6 @@ const marketOrder: PlayerPropMarket[] = [
   "player_rebounds",
   "player_assists",
   "player_threes",
-  "player_points_rebounds_assists",
 ];
 
 const marketNames: Record<PlayerPropMarket, string> = {

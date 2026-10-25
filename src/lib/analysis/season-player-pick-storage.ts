@@ -4,10 +4,11 @@ import { Game } from '@/types';
 import { db } from '@/lib/db';
 import { playerGameStats, playerPropTicketLegs, playerPropTickets, seasonPlayerPicks } from '@/lib/db/schema';
 import { buildSeasonPlayerPicks, SeasonPickMarket } from './season-player-picks';
+import { BETBY_PLAYER_PROP_MARKETS } from './player-props';
 
-const MODEL_VERSION = 'season-average-v2';
+export const SEASON_PLAYER_PICK_MODEL_VERSION = 'season-average-v4-betby-rotation';
 const MARKETS: SeasonPickMarket[] = [
-  'player_points', 'player_rebounds', 'player_assists', 'player_threes', 'player_points_rebounds_assists',
+  ...BETBY_PLAYER_PROP_MARKETS,
 ];
 
 function seasonFor(start: string) {
@@ -62,7 +63,7 @@ export async function getAndStoreSeasonPlayerPicks(input: {
     return [market, { wins, losses, total: wins + losses }];
   })) as Record<SeasonPickMarket, { wins: number; losses: number; total: number }>;
 
-  const picks = buildSeasonPlayerPicks({ games: fixtures, logs, personalByMarket });
+  const picks = buildSeasonPlayerPicks({ games: fixtures, logs, personalByMarket, markets: MARKETS });
   const fixtureById = new Map(fixtures.map(fixture => [fixture.id, fixture]));
   const rows = picks.flatMap(pick => {
     const fixture = fixtureById.get(pick.gameId);
@@ -83,7 +84,7 @@ export async function getAndStoreSeasonPlayerPicks(input: {
       sample_size: pick.sampleSize,
       observed_hits: pick.hits,
       observed_rate: pick.observedRate.toFixed(4),
-      model_version: MODEL_VERSION,
+      model_version: SEASON_PLAYER_PICK_MODEL_VERSION,
       commence_time: new Date(pick.commenceTime),
       details: {
         last5Average: pick.last5Average,
@@ -98,7 +99,7 @@ export async function getAndStoreSeasonPlayerPicks(input: {
     : [];
   const tracked = eventIds.length
     ? await db.select({ total: count() }).from(seasonPlayerPicks).where(and(
-        eq(seasonPlayerPicks.model_version, MODEL_VERSION),
+        eq(seasonPlayerPicks.model_version, SEASON_PLAYER_PICK_MODEL_VERSION),
         inArray(seasonPlayerPicks.event_id, eventIds),
       ))
     : [{ total: 0 }];
@@ -112,6 +113,6 @@ export async function getAndStoreSeasonPlayerPicks(input: {
     excludedScheduledGames: fixtures.length - new Set(picks.map(pick => pick.gameId)).size,
     savedNow: inserted.length,
     trackedCount: Number(tracked[0]?.total || 0),
-    note: 'Agora só exibimos jogadores com pelo menos 2 jogos anteriores. Cada partida pode ter até um sinal por mercado; o mesmo atleta pode aparecer em categorias diferentes. A frequência não é probabilidade calibrada, e a linha é uma referência estatística, não cotação de uma casa.',
+    note: 'A direção compara a média dos últimos 5 jogos com a amostra anterior para evitar o viés de “Menos de” causado pela média em estatísticas assimétricas. Sinais limitados aos 8 jogadores com maior média de minutos recentes por time e a pelo menos 10 minutos por jogo; mercados limitados a Pontos, Rebotes, Assistências e Cestas de 3. São sinais estatísticos, não odds ou linhas da Betby.',
   };
 }
