@@ -25,6 +25,7 @@ describe('buildSeasonSuggestedTickets', () => {
     const exaggerated = buildSeasonSuggestedTickets(sixPlayersAfterSingleAndDouble).find(ticket => ticket.id === 'exaggerated');
     expect(exaggerated?.picks).toHaveLength(6);
     expect(new Set(exaggerated?.picks.map(row => row.player)).size).toBe(6);
+    expect(new Set(exaggerated?.picks.map(row => row.gameId)).size).toBe(1);
   });
 
   it('ranks sample-supported evidence above a perfect one-game signal', () => {
@@ -45,5 +46,14 @@ describe('buildSeasonSuggestedTickets', () => {
     const keys = tickets.flatMap(ticket => ticket.picks.map(row => `${row.player}:${row.market}`));
     expect(new Set(keys).size).toBe(keys.length);
     expect(tickets.find(ticket => ticket.id === 'double')?.picks.some(row => row.player === 'A')).toBe(true);
+  });
+
+  it('does not include Under signals in suggested tickets', () => {
+    const tickets = buildSeasonSuggestedTickets([
+      { ...pick('Under', 9, 10), side: 'Under' },
+      pick('Over', 6, 10),
+    ]);
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0].picks.map(row => row.player)).toEqual(['Over']);
   });
 });

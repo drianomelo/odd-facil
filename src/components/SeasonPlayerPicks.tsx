@@ -72,7 +72,7 @@ export function SeasonPlayerPicks({
         <div className="px-5 py-8 text-sm text-slate-600 sm:px-7">
           {error || (gamesInWindow === 0
             ? 'Não há jogos agendados nessa janela no banco de dados.'
-            : 'Ainda não há sinais com amostra mínima. O jogador precisa ter pelo menos 2 jogos importados antes da partida; com apenas uma aparição, a linha baseada na própria média fazia o sistema marcar “Menos de” automaticamente.')}
+            : 'Ainda não há sinais “Mais de” com amostra e tendência suficientes. O jogador precisa ter pelo menos 2 jogos importados antes da partida.')}
         </div>
       )}
 

@@ -6,7 +6,7 @@ import { playerGameStats, playerPropTicketLegs, playerPropTickets, seasonPlayerP
 import { buildSeasonPlayerPicks, SeasonPickMarket } from './season-player-picks';
 import { BETBY_PLAYER_PROP_MARKETS } from './player-props';
 
-export const SEASON_PLAYER_PICK_MODEL_VERSION = 'season-average-v4-betby-rotation';
+export const SEASON_PLAYER_PICK_MODEL_VERSION = 'season-average-v5-over-only';
 const MARKETS: SeasonPickMarket[] = [
   ...BETBY_PLAYER_PROP_MARKETS,
 ];
@@ -113,6 +113,6 @@ export async function getAndStoreSeasonPlayerPicks(input: {
     excludedScheduledGames: fixtures.length - new Set(picks.map(pick => pick.gameId)).size,
     savedNow: inserted.length,
     trackedCount: Number(tracked[0]?.total || 0),
-    note: 'A direção compara a média dos últimos 5 jogos com a amostra anterior para evitar o viés de “Menos de” causado pela média em estatísticas assimétricas. Sinais limitados aos 8 jogadores com maior média de minutos recentes por time e a pelo menos 10 minutos por jogo; mercados limitados a Pontos, Rebotes, Assistências e Cestas de 3. São sinais estatísticos, não odds ou linhas da Betby.',
+    note: 'Apenas sinais “Mais de” com média recente em alta e pelo menos metade dos jogos anteriores acima da linha. Sinais limitados aos 8 jogadores com maior média de minutos recentes por time e a pelo menos 10 minutos por jogo; mercados limitados a Pontos, Rebotes, Assistências e Cestas de 3. São sinais estatísticos, não odds ou linhas da Betby.',
   };
 }

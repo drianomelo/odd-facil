@@ -13,6 +13,7 @@ const row = (overrides: Record<string, unknown> = {}) => ({
   team: 'Boston Celtics',
   opponent: 'New York Knicks',
   played: true,
+  minutes: 25,
   points: 20,
   rebounds: 5,
   assists: 4,
@@ -26,7 +27,7 @@ describe('buildSeasonPlayerPicks', () => {
       games: [{ id: 'future', commenceTime: new Date('2026-10-22T23:00:00Z'), homeTeam: 'Boston Celtics', awayTeam: 'New York Knicks' }],
       logs: [
         row(),
-        row({ event_id: 'past-2', game_date: new Date('2026-10-21T23:00:00Z'), points: 18, rebounds: 6, assists: 3, threes: 1 }),
+        row({ event_id: 'past-2', game_date: new Date('2026-10-21T23:00:00Z'), points: 22, rebounds: 6, assists: 5, threes: 3 }),
         row({ event_id: 'too-late', game_date: new Date('2026-10-23T00:00:00Z'), points: 99 }),
       ],
       personalByMarket,
@@ -36,9 +37,9 @@ describe('buildSeasonPlayerPicks', () => {
     const points = picks.find(pick => pick.market === 'player_points');
     expect(points).toMatchObject({
       player: 'Player One',
-      line: 19.5,
-      side: 'Under',
-      seasonAverage: 19,
+      line: 21.5,
+      side: 'Over',
+      seasonAverage: 21,
       hits: 1,
       sampleSize: 2,
       observedRate: 0.5,
@@ -52,7 +53,7 @@ describe('buildSeasonPlayerPicks', () => {
         { id: 'with-base', commenceTime: new Date('2026-10-22T23:00:00Z'), homeTeam: 'Boston Celtics', awayTeam: 'New York Knicks' },
         { id: 'without-base', commenceTime: new Date('2026-10-22T23:00:00Z'), homeTeam: 'Utah Jazz', awayTeam: 'Portland Trail Blazers' },
       ],
-      logs: [row(), row({ event_id: 'past-2', game_date: new Date('2026-10-21T23:00:00Z'), points: 18, rebounds: 6, assists: 3, threes: 1 })],
+      logs: [row(), row({ event_id: 'past-2', game_date: new Date('2026-10-21T23:00:00Z'), points: 22, rebounds: 6, assists: 5, threes: 3 })],
       personalByMarket,
       now: new Date('2026-10-21T00:00:00Z'),
     });
@@ -61,6 +62,30 @@ describe('buildSeasonPlayerPicks', () => {
     expect(picks.every(pick => pick.gameId === 'with-base')).toBe(true);
     expect(new Set(picks.map(pick => pick.market)).size).toBe(5);
     expect(new Set(picks.map(pick => pick.playerId))).toEqual(new Set(['player-1']));
+    expect(picks.every(pick => pick.side === 'Over')).toBe(true);
+  });
+
+  it('omits falling trends and weak Over frequencies instead of suggesting Under', () => {
+    const game = { id: 'future', commenceTime: new Date('2026-10-25T23:00:00Z'), homeTeam: 'Boston Celtics', awayTeam: 'New York Knicks' };
+    const base = [
+      row({ points: 10 }),
+      row({ event_id: 'past-2', game_date: new Date('2026-10-21T23:00:00Z'), points: 8 }),
+    ];
+    const falling = buildSeasonPlayerPicks({ games: [game], logs: base, personalByMarket, markets: ['player_points'], now: new Date('2026-10-24T00:00:00Z') });
+    expect(falling).toEqual([]);
+
+    const weak = buildSeasonPlayerPicks({
+      games: [game],
+      logs: [
+        row({ points: 8 }),
+        row({ event_id: 'past-2', game_date: new Date('2026-10-21T23:00:00Z'), points: 9 }),
+        row({ event_id: 'past-3', game_date: new Date('2026-10-22T23:00:00Z'), points: 10 }),
+      ],
+      personalByMarket,
+      markets: ['player_points'],
+      now: new Date('2026-10-24T00:00:00Z'),
+    });
+    expect(weak).toEqual([]);
   });
 
   it('does not create picks for a player without an appearance or for a started fixture', () => {

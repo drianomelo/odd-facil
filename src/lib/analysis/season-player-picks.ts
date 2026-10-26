@@ -133,20 +133,16 @@ export function buildSeasonPlayerPicks(input: {
         const seasonAverage = mean(values);
         const line = Math.floor(seasonAverage) + 0.5;
         const overHits = values.filter(value => value > line).length;
-        const underHits = values.filter(value => value < line).length;
-        // The old rule picked whichever side occurred more often around the
-        // season mean. Since player stats are right-skewed, that mechanically
-        // favored Under even when recent form was improving. Compare the last
-        // five appearances with the earlier sample instead; do not force a side
-        // when there is no directional change.
+        // Suggest only Over when recent form is rising and the season sample
+        // supports the line. Do not turn a falling trend into an Under pick.
         const recent = values.slice(0, 5);
         const older = values.length > recent.length ? values.slice(recent.length) : values.slice(1);
         if (!older.length) continue;
         const recentAverage = mean(recent);
         const olderAverage = mean(older);
-        if (Math.abs(recentAverage - olderAverage) < 1e-9) continue;
-        const side: 'Over' | 'Under' = recentAverage > olderAverage ? 'Over' : 'Under';
-        const hits = side === 'Over' ? overHits : underHits;
+        if (recentAverage <= olderAverage || overHits / values.length < 0.5) continue;
+        const side = 'Over';
+        const hits = overHits;
         const personalRecord = input.personalByMarket[market] || { wins: 0, losses: 0, total: 0 };
         candidates.push({
           id: `${fixture.id}:${player.playerId}:${market}`,

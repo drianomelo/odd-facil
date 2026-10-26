@@ -427,7 +427,8 @@ export async function DashboardContent() {
   const playerPropWindow = getPlayerPropAnalysisWindow();
   const visibleRecommendations = (NBA_PREDICTIONS_ENABLED ? data.player_analysis.recommendations : []).filter((pick) => {
     const commence = Date.parse(pick.commenceTime);
-    return Number.isFinite(commence) && commence >= playerPropWindow.from.getTime() && commence <= playerPropWindow.to.getTime();
+    return pick.recommendationSide !== "Under" && Number.isFinite(commence)
+      && commence >= playerPropWindow.from.getTime() && commence <= playerPropWindow.to.getTime();
   });
   const featuredRecommendations = selectDailyPlayerPropShortlist(
     visibleRecommendations,

@@ -13,7 +13,7 @@ export function SeasonSuggestedTickets({ tickets }: { tickets: SeasonSuggestedTi
     <section aria-labelledby="season-ticket-title" className="mt-8 space-y-4">
       <div>
         <h2 id="season-ticket-title" className="text-2xl font-bold text-[#005A9C] sm:text-3xl">Combinações sugeridas</h2>
-        <p className="mt-1 text-sm text-slate-600">Montadas com os sinais da temporada. Seu histórico por mercado ajusta a ordem das combinações, mas não escolhe “Mais de” ou “Menos de”.</p>
+        <p className="mt-1 text-sm text-slate-600">Montadas apenas com sinais “Mais de” da temporada. Seu histórico por mercado ajusta a ordem das combinações.</p>
       </div>
       {tickets.length ? <div className="grid gap-4 lg:grid-cols-3">{tickets.map(ticket => (
         <article key={ticket.id} className="overflow-hidden rounded-xl border border-[#58A9E3]/50 bg-white">
@@ -31,7 +31,7 @@ export function SeasonSuggestedTickets({ tickets }: { tickets: SeasonSuggestedTi
           </ol>
         </article>
       ))}</div> : <p className="rounded-xl border border-[#58A9E3]/40 bg-[#F3F9FD] px-4 py-5 text-sm text-slate-600">Ainda não há sinais suficientes para montar combinações.</p>}
-      <p className="text-xs leading-5 text-slate-500">Cada bilhete inclui no máximo uma seleção por jogo, além de não repetir a mesma proposta de jogador e mercado entre bilhetes. A exagerada só aparece com seis atletas e seis jogos distintos. A ordem considera amostra e frequência da temporada; seus resultados manuais têm peso limitado. Não há odds nem chance conjunta: confira as cotações na casa antes de registrar a aposta.</p>
+      <p className="text-xs leading-5 text-slate-500">O mesmo jogador e mercado não se repetem entre bilhetes, e cada bilhete usa atletas diferentes. A exagerada só aparece com seis atletas. A ordem considera amostra e frequência da temporada; seus resultados manuais têm peso limitado. Seleções da mesma partida podem ser correlacionadas. Não há odds nem chance conjunta: confira as cotações na casa antes de registrar a aposta.</p>
     </section>
   );
 }

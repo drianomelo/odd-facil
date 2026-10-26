@@ -38,6 +38,19 @@ function candidate(overrides: Partial<PlayerPropCandidate> = {}): PlayerPropCand
 }
 
 describe('buildSuggestedTickets', () => {
+  it('omits Under selections from suggested tickets', () => {
+    const under = candidate({
+      id: 'under-pick',
+      player: 'Under Player',
+      recommendationSide: 'Under',
+      expectedValueUnder: 0.3,
+      edgeUnder: 0.2,
+    });
+    const tickets = buildSuggestedTickets([under, candidate()]);
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0].selections.map(leg => leg.player)).toEqual(['Player A']);
+  });
+
   it('builds disjoint single and double tickets without inventing joint probability', () => {
     const second = candidate({
       id: 'event-2:Player B:player_rebounds:8.5',
