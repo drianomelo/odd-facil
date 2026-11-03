@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#1a1a2e',
+  themeColor: '#07090B',
   width: 'device-width',
   initialScale: 1,
 };
@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
       </head>
-      <body className="bg-court-bg text-court-text min-h-screen">
+      <body className="min-h-screen bg-court-bg text-court-text">
         {children}
       </body>
     </html>

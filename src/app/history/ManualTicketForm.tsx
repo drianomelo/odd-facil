@@ -120,14 +120,14 @@ export function ManualTicketForm({ onSaved }: { onSaved: () => void }) {
   }
 
   return (
-    <details className="rounded-xl border border-[#58A9E3]/60 bg-[#F3F9FD] p-4 sm:p-5">
-      <summary className="cursor-pointer list-none font-semibold text-[#005A9C] marker:hidden">
+    <details className="rounded-xl border border-[#58A9E3]/35 bg-[#111416] p-4 sm:p-5">
+      <summary className="cursor-pointer list-none font-semibold text-[#8CCBEE] marker:hidden">
         Registrar bilhete feito por fora
-        <span className="ml-2 text-xs font-normal text-slate-600">Registre antes do jogo; as seleções ficam pendentes até a apuração.</span>
+        <span className="ml-2 text-xs font-normal text-white/50">Registre antes do jogo; as seleções ficam pendentes até a apuração.</span>
       </summary>
       <form onSubmit={event => void submit(event)} className="mt-4 space-y-4">
         {loadingOptions ? <p className="text-sm text-court-textMuted">Carregando jogos e jogadores…</p> : !options?.games.length ? (
-          <p className="rounded-lg border border-court-border bg-white p-3 text-sm text-court-textMuted">Não há jogos disponíveis na agenda para registrar.</p>
+          <p className="rounded-lg border border-court-border bg-court-surface p-3 text-sm text-court-textMuted">Não há jogos disponíveis na agenda para registrar.</p>
         ) : <>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-xs text-court-textMuted">Nome do bilhete
@@ -155,7 +155,7 @@ export function ManualTicketForm({ onSaved }: { onSaved: () => void }) {
             {combinedLegs.map((item, index) => {
               const players = item.game?.players || [];
               return (
-                <fieldset key={index} className="grid gap-3 rounded-lg border border-court-border bg-white p-3 sm:grid-cols-2 lg:grid-cols-3">
+                <fieldset key={index} className="grid gap-3 rounded-lg border border-court-border bg-court-surface p-3 sm:grid-cols-2 lg:grid-cols-3">
                   <legend className="sr-only">Seleção {index + 1}</legend>
                   <label className="text-xs text-court-textMuted">Jogo
                     <select required value={item.eventId} onChange={event => updateLeg(index, { eventId: event.target.value })} className="input mt-1 py-2 text-sm">

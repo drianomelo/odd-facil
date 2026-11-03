@@ -10,15 +10,15 @@ const config: Config = {
     extend: {
       colors: {
         court: {
-          bg: '#ffffff',
-          card: '#ffffff',
-          surface: '#f8fafc',
-          border: '#e2e8f0',
+          bg: '#07090B',
+          card: '#111416',
+          surface: '#15181B',
+          border: '#292E33',
           accent: '#ed174c',
           accentHover: '#c8102e',
-          text: '#172033',
-          textMuted: '#64748b',
-          success: '#00d9a5',
+          text: '#F4F6F8',
+          textMuted: '#9AA3AC',
+          success: '#00D084',
           warning: '#ffd700',
           danger: '#ff4757',
         },

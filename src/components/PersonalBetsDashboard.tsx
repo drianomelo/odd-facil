@@ -208,16 +208,16 @@ export function PersonalBetsDashboard() {
       </dl>
 
       <div className="flex gap-2 overflow-x-auto border-b border-court-border pb-2" role="tablist" aria-label="Filtrar apostas pessoais">
-        {FILTERS.map(item => <button key={item.id} type="button" role="tab" aria-selected={filter === item.id} onClick={() => setFilter(item.id)} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition ${filter === item.id ? "bg-[#EAF5FC] text-[#005A9C]" : "text-court-textMuted hover:bg-court-card hover:text-court-text"}`}>{item.label}<span className="ml-2 rounded-full bg-white/80 px-1.5 py-0.5 text-xs tabular-nums">{item.id === "all" ? counts.all : item.id === "push/void" ? counts.returned : counts[item.id]}</span></button>)}
+        {FILTERS.map(item => <button key={item.id} type="button" role="tab" aria-selected={filter === item.id} onClick={() => setFilter(item.id)} className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition ${filter === item.id ? "bg-[#12334A] text-[#8CCBEE]" : "text-court-textMuted hover:bg-court-surface hover:text-court-text"}`}>{item.label}<span className="ml-2 rounded-full bg-black/25 px-1.5 py-0.5 text-xs tabular-nums">{item.id === "all" ? counts.all : item.id === "push/void" ? counts.returned : counts[item.id]}</span></button>)}
       </div>
 
       {error && <div role="alert" className="rounded-lg border border-court-danger/30 bg-court-danger/5 p-4 text-sm text-court-danger">{error}<button type="button" onClick={() => setReloadKey(key => key + 1)} className="ml-2 font-semibold underline">Tentar novamente</button></div>}
       {feedback && <p role="status" className="text-sm text-court-textMuted">{feedback}</p>}
       {loading ? <div className="h-36 animate-pulse rounded-xl bg-court-card" aria-label="Carregando apostas pessoais" /> : visibleTickets.length ? <div className="space-y-3">
-        {visibleTickets.map(ticket => <article key={ticket.id} className="overflow-hidden rounded-xl border border-court-border bg-white">
+        {visibleTickets.map(ticket => <article key={ticket.id} className="overflow-hidden rounded-xl border border-court-border bg-court-card">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-court-border bg-court-card/50 px-4 py-3 sm:px-5">
             <div><h2 className="font-bold text-court-text">{ticket.label}</h2><p className="mt-0.5 text-xs text-court-textMuted">{new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Bahia", dateStyle: "medium", timeStyle: "short" }).format(new Date(ticket.createdAt))} · {ticket.bookmaker}</p></div>
-            <span className={`rounded-full px-3 py-1 text-xs font-bold ${ticket.outcome === "won" ? "bg-emerald-100 text-emerald-800" : ticket.outcome === "lost" ? "bg-rose-100 text-rose-800" : ticket.outcome === "pending" ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-700"}`}>{OUTCOME_LABELS[ticket.outcome]}</span>
+            <span className={`rounded-full px-3 py-1 text-xs font-bold ${ticket.outcome === "won" ? "bg-emerald-400/15 text-emerald-300" : ticket.outcome === "lost" ? "bg-rose-400/15 text-rose-300" : ticket.outcome === "pending" ? "bg-amber-300/15 text-amber-200" : "bg-white/10 text-white/70"}`}>{OUTCOME_LABELS[ticket.outcome]}</span>
           </header>
           <div className="divide-y divide-court-border px-4 sm:px-5">
             {ticket.legs.map((leg, index) => <div key={`${ticket.id}-${leg.position}-${index}`} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
@@ -228,7 +228,7 @@ export function PersonalBetsDashboard() {
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-court-border px-4 py-3 text-xs text-court-textMuted sm:px-5"><span>Odd {ticket.combinedDecimalOdds?.toFixed(2) ?? "—"}</span><span>Apostado {currency(ticket.stakeAmount)}</span><span>Retorno potencial {ticket.potentialReturn === null ? "—" : currency(ticket.potentialReturn)}</span><span>Retorno real {ticketReturn(ticket) === null ? "—" : currency(ticketReturn(ticket)!)}</span></div>
           <details className="group border-t border-court-border px-4 py-3 sm:px-5">
-            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[#005A9C]"><Pencil size={15} /> Ajustar valores ou resultado <ChevronDown size={15} className="ml-auto transition group-open:rotate-180" /></summary>
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-[#58A9E3]"><Pencil size={15} /> Ajustar valores ou resultado <ChevronDown size={15} className="ml-auto transition group-open:rotate-180" /></summary>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label className="text-xs text-court-textMuted">Valor apostado (R$)<input type="number" min="0.01" step="0.01" value={drafts[ticket.id]?.stake ?? ""} onChange={event => updateDraft(ticket.id, "stake", event.target.value)} className="input mt-1 py-2 text-sm" /></label>
               <label className="text-xs text-court-textMuted">Odd combinada<input type="number" min="0.01" step="0.01" value={drafts[ticket.id]?.odds ?? ""} onChange={event => updateDraft(ticket.id, "odds", event.target.value)} className="input mt-1 py-2 text-sm" placeholder="Opcional" /></label>
@@ -239,7 +239,7 @@ export function PersonalBetsDashboard() {
             </div>
           </details>
         </article>)}
-      </div> : <div className="rounded-xl border border-dashed border-court-border bg-court-card/40 px-5 py-10 text-center"><h2 className="font-semibold text-court-text">{tickets.length ? "Nenhuma aposta neste filtro" : "Seus bilhetes pessoais ficam aqui"}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-court-textMuted">{tickets.length ? "Escolha outra situação para ver seus bilhetes." : "Abra “Registrar bilhete feito por fora” acima para cadastrar uma aposta. Depois, atualize o resultado e o retorno por aqui."}</p>{tickets.length > 0 && <button type="button" onClick={() => setFilter("all")} className="mt-3 text-sm font-semibold text-[#005A9C] underline">Mostrar todos</button>}</div>}
+      </div> : <div className="rounded-xl border border-dashed border-court-border bg-court-card/40 px-5 py-10 text-center"><h2 className="font-semibold text-court-text">{tickets.length ? "Nenhuma aposta neste filtro" : "Seus bilhetes pessoais ficam aqui"}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-court-textMuted">{tickets.length ? "Escolha outra situação para ver seus bilhetes." : "Abra “Registrar bilhete feito por fora” acima para cadastrar uma aposta. Depois, atualize o resultado e o retorno por aqui."}</p>{tickets.length > 0 && <button type="button" onClick={() => setFilter("all")} className="mt-3 text-sm font-semibold text-[#8CCBEE] underline">Mostrar todos</button>}</div>}
     </div>
   );
 }
