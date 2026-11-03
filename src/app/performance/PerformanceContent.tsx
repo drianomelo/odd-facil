@@ -198,33 +198,33 @@ export function PerformanceContent() {
               <h2 id="markets-title" className="text-lg font-semibold text-court-text">Resultados por mercado</h2>
               <p className="mt-1 text-sm text-court-textMuted">Erro médio compara a projeção com a estatística final. Brier avalia a qualidade das probabilidades; valores menores são melhores.</p>
             </div>
-            <div className="overflow-x-auto border-y border-court-border">
-              <table className="min-w-[720px] w-full text-left text-sm">
+            <div className="table-container">
+              <table className="table-compact min-w-[720px]">
                 <thead>
-                  <tr className="text-xs text-court-textMuted">
-                    <th scope="col" className="py-3 pr-4 font-medium">Mercado</th>
-                    <th scope="col" className="px-3 py-3 text-right font-medium">Previsões</th>
-                    <th scope="col" className="px-3 py-3 text-right font-medium">Apuradas</th>
-                    <th scope="col" className="px-3 py-3 text-right font-medium">Acerto</th>
-                    <th scope="col" className="px-3 py-3 text-right font-medium">Erro médio</th>
-                    <th scope="col" className="py-3 pl-3 text-right font-medium">Brier</th>
+                  <tr>
+                    <th scope="col">Mercado</th>
+                    <th scope="col" className="text-right">Previsões</th>
+                    <th scope="col" className="text-right">Apuradas</th>
+                    <th scope="col" className="text-right">Acerto</th>
+                    <th scope="col" className="text-right">Erro médio</th>
+                    <th scope="col" className="text-right">Brier</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-court-border">
+                <tbody>
                   {data.byMarket.map(row => (
                     <tr key={row.market}>
-                      <th scope="row" className="py-3 pr-4 font-medium text-court-text">{MARKET_LABELS[row.market]}</th>
-                      <td className="px-3 py-3 text-right tabular-nums text-court-textMuted">{row.totalForecasts}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-court-textMuted">{row.settled}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-court-textMuted">{percent(row.hitRate)}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-court-textMuted">{row.meanAbsoluteError === null ? '—' : row.meanAbsoluteError.toFixed(1)}</td>
-                      <td className="py-3 pl-3 text-right tabular-nums text-court-textMuted">{row.brierScore === null ? '—' : row.brierScore.toFixed(3)}</td>
+                      <th scope="row" className="font-medium text-court-text">{MARKET_LABELS[row.market]}</th>
+                      <td className="text-right tabular-nums text-court-textMuted">{row.totalForecasts}</td>
+                      <td className="text-right tabular-nums text-court-textMuted">{row.settled}</td>
+                      <td className="text-right tabular-nums text-court-textMuted">{percent(row.hitRate)}</td>
+                      <td className="text-right tabular-nums text-court-textMuted">{row.meanAbsoluteError === null ? '—' : row.meanAbsoluteError.toFixed(1)}</td>
+                      <td className="text-right tabular-nums text-court-textMuted">{row.brierScore === null ? '—' : row.brierScore.toFixed(3)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               {data.byMarket.every(row => row.settled === 0) && (
-                <p className="border-t border-court-border py-4 text-sm text-court-textMuted">A comparação por mercado será preenchida conforme os jogos forem apurados.</p>
+                <p className="border-t border-court-border px-3 py-3 text-xs text-court-textMuted">A comparação por mercado será preenchida conforme os jogos forem apurados.</p>
               )}
             </div>
           </section>
@@ -238,30 +238,30 @@ export function PerformanceContent() {
               <Link href="/history" className="text-sm font-medium text-court-accent underline-offset-4 hover:underline">Abrir histórico completo</Link>
             </div>
             {data.recentSettled.length ? (
-              <div className="overflow-x-auto border-y border-court-border">
-                <table className="min-w-[900px] w-full text-left text-sm">
+              <div className="table-container">
+                <table className="table-compact min-w-[900px]">
                   <thead>
-                    <tr className="text-xs text-court-textMuted">
-                      <th scope="col" className="py-3 pr-4 font-medium">Jogo / jogador</th>
-                      <th scope="col" className="px-3 py-3 font-medium">Mercado</th>
-                      <th scope="col" className="px-3 py-3 text-right font-medium">Palpite</th>
-                      <th scope="col" className="px-3 py-3 text-right font-medium">Projeção / real</th>
-                      <th scope="col" className="px-3 py-3 text-right font-medium">Chance</th>
-                      <th scope="col" className="py-3 pl-3 text-right font-medium">Resultado</th>
+                    <tr>
+                      <th scope="col">Jogo / jogador</th>
+                      <th scope="col">Mercado</th>
+                      <th scope="col" className="text-right">Palpite</th>
+                      <th scope="col" className="text-right">Projeção / real</th>
+                      <th scope="col" className="text-right">Chance</th>
+                      <th scope="col" className="text-right">Resultado</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-court-border">
+                  <tbody>
                     {data.recentSettled.map(forecast => (
                       <tr key={forecast.id}>
-                        <th scope="row" className="py-3 pr-4 font-medium text-court-text">
+                        <th scope="row" className="font-medium text-court-text">
                           <span className="block">{forecast.player}</span>
                           <span className="mt-1 block text-xs font-normal text-court-textMuted">{forecast.game || `Partida ${forecast.id.slice(0, 8)}`}</span>
                         </th>
-                        <td className="px-3 py-3 text-court-textMuted">{MARKET_LABELS[forecast.market]}</td>
-                        <td className="px-3 py-3 text-right text-court-textMuted">{forecast.selection === 'Over' ? 'Mais de' : 'Menos de'} {forecast.line}{forecast.americanOdds === null ? '' : ` · ${forecast.americanOdds > 0 ? '+' : ''}${forecast.americanOdds}`}</td>
-                        <td className="px-3 py-3 text-right tabular-nums text-court-textMuted">{forecast.projection.toFixed(1)} / {forecast.actualValue?.toFixed(1) ?? '—'}</td>
-                        <td className="px-3 py-3 text-right tabular-nums text-court-textMuted">{percent(forecast.predictedProbability)}</td>
-                        <td className={`py-3 pl-3 text-right font-medium ${forecast.result === 'won' ? 'text-court-success' : forecast.result === 'lost' ? 'text-court-danger' : 'text-court-textMuted'}`}>{RESULT_LABELS[forecast.result]}</td>
+                        <td className="text-court-textMuted">{MARKET_LABELS[forecast.market]}</td>
+                        <td className="text-right text-court-textMuted">{forecast.selection === 'Over' ? 'Mais de' : 'Menos de'} {forecast.line}{forecast.americanOdds === null ? '' : ` · ${forecast.americanOdds > 0 ? '+' : ''}${forecast.americanOdds}`}</td>
+                        <td className="text-right tabular-nums text-court-textMuted">{forecast.projection.toFixed(1)} / {forecast.actualValue?.toFixed(1) ?? '—'}</td>
+                        <td className="text-right tabular-nums text-court-textMuted">{percent(forecast.predictedProbability)}</td>
+                        <td className={`text-right font-medium ${forecast.result === 'won' ? 'text-court-success' : forecast.result === 'lost' ? 'text-court-danger' : 'text-court-textMuted'}`}>{RESULT_LABELS[forecast.result]}</td>
                       </tr>
                     ))}
                   </tbody>

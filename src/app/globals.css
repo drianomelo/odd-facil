@@ -102,7 +102,27 @@
   }
 
   .table-container {
-    @apply overflow-x-auto rounded-lg border border-court-border;
+    @apply overflow-x-auto rounded-xl border border-court-border bg-court-card;
+  }
+
+  .table-compact {
+    @apply w-full text-left text-xs text-court-text;
+  }
+
+  .table-compact thead {
+    @apply bg-court-bg/60 text-[10px] uppercase tracking-wide text-court-textMuted;
+  }
+
+  .table-compact th {
+    @apply whitespace-nowrap px-3 py-2.5 font-semibold;
+  }
+
+  .table-compact td {
+    @apply border-t border-court-border/70 px-3 py-2.5 align-middle;
+  }
+
+  .table-compact tbody tr {
+    @apply transition-colors hover:bg-court-bg/60;
   }
 
   .table {

@@ -94,14 +94,14 @@ export function SeasonBasePanel() {
 
       <section aria-labelledby="player-season-averages-title" className="space-y-3">
         <div><h3 id="player-season-averages-title" className="font-semibold text-court-text">Médias por jogador</h3><p className="mt-1 text-xs text-court-textMuted">Amostra mostra quantos jogos cada jogador disputou. Com poucos jogos, a média ainda pode oscilar bastante.</p></div>
-        <div className="max-h-[65vh] overflow-auto rounded-xl border border-court-border">
-          <table className="w-full min-w-[850px] border-collapse text-left text-xs">
-            <thead className="sticky top-0 bg-court-card text-court-textMuted"><tr>
-              <th className="px-3 py-3 font-medium">Jogador</th><th className="px-3 py-3 font-medium">Time</th><th className="px-3 py-3 text-right font-medium">Jogos</th><th className="px-3 py-3 text-right font-medium">Min</th><th className="px-3 py-3 text-right font-medium">PTS</th><th className="px-3 py-3 text-right font-medium">REB</th><th className="px-3 py-3 text-right font-medium">AST</th><th className="px-3 py-3 text-right font-medium">3PM</th><th className="px-3 py-3 text-right font-medium">PRA</th>
+        <div className="table-container max-h-[65vh] overflow-auto">
+          <table className="table-compact min-w-[850px]">
+            <thead className="sticky top-0"><tr>
+              <th>Jogador</th><th>Time</th><th className="text-right">Jogos</th><th className="text-right">Min</th><th className="text-right">PTS</th><th className="text-right">REB</th><th className="text-right">AST</th><th className="text-right">3PM</th><th className="text-right">PRA</th>
             </tr></thead>
-            <tbody className="divide-y divide-court-border">
+            <tbody>
               {data.players.map(player => <tr key={player.playerId} className="text-court-text">
-                <td className="px-3 py-3 font-medium">{player.player}</td><td className="px-3 py-3 text-court-textMuted">{player.team}</td><td className="px-3 py-3 text-right font-mono">{player.games}</td><td className="px-3 py-3 text-right font-mono">{average(player.minutes)}</td><td className="px-3 py-3 text-right font-mono">{average(player.points)}</td><td className="px-3 py-3 text-right font-mono">{average(player.rebounds)}</td><td className="px-3 py-3 text-right font-mono">{average(player.assists)}</td><td className="px-3 py-3 text-right font-mono">{average(player.threes)}</td><td className="px-3 py-3 text-right font-mono">{average(player.pra)}</td>
+                <td className="font-medium">{player.player}</td><td className="text-court-textMuted">{player.team}</td><td className="text-right font-mono tabular-nums">{player.games}</td><td className="text-right font-mono tabular-nums">{average(player.minutes)}</td><td className="text-right font-mono tabular-nums">{average(player.points)}</td><td className="text-right font-mono tabular-nums">{average(player.rebounds)}</td><td className="text-right font-mono tabular-nums">{average(player.assists)}</td><td className="text-right font-mono tabular-nums">{average(player.threes)}</td><td className="text-right font-mono tabular-nums">{average(player.pra)}</td>
               </tr>)}
             </tbody>
           </table>

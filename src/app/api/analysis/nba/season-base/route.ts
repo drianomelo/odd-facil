@@ -52,6 +52,16 @@ export async function GET() {
           threes: average('threes', recent),
           pra: average('points', recent) + average('rebounds', recent) + average('assists', recent),
         },
+        logs: games.slice(0, 20).map(game => ({
+          eventId: game.event_id,
+          date: game.game_date.toISOString(),
+          opponent: game.opponent,
+          minutes: Number(game.minutes),
+          points: Number(game.points),
+          rebounds: Number(game.rebounds),
+          assists: Number(game.assists),
+          threes: Number(game.threes),
+        })),
       };
     }).sort((a, b) => b.games - a.games || b.points - a.points || a.player.localeCompare(b.player, 'pt-BR'));
 

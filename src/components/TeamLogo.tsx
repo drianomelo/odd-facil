@@ -1,6 +1,6 @@
 "use client";
 
-const NBA_TEAMS = [
+export const NBA_TEAMS = [
   { id: "1610612737", abbreviation: "ATL", color: "#C8102E", names: ["Atlanta Hawks"] },
   { id: "1610612738", abbreviation: "BOS", color: "#007A33", names: ["Boston Celtics"] },
   { id: "1610612751", abbreviation: "BKN", color: "#111111", names: ["Brooklyn Nets"] },
