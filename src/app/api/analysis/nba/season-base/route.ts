@@ -18,7 +18,10 @@ export async function GET() {
     const seasonStart = process.env.NBA_REGULAR_SEASON_START || '2026-10-20';
     const season = currentSeason(seasonStart);
     const allGameRows = await db.select().from(playerGameStats)
-      .where(eq(playerGameStats.season, season));
+      .where(and(
+        eq(playerGameStats.season, season),
+        gte(playerGameStats.game_date, new Date(`${seasonStart}T00:00:00.000Z`)),
+      ));
     const playedRows = allGameRows.filter(row => row.played)
       .sort((a, b) => b.game_date.getTime() - a.game_date.getTime());
 

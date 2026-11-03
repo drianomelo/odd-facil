@@ -6,8 +6,8 @@ const urbanist = Urbanist({ subsets: ['latin'], variable: '--font-urbanist-loade
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: 'Odd Fácil - Análise Estatística de Basquete',
-  description: 'Dashboard de oportunidades pré-jogo NBA com modelo estatístico próprio',
+  title: 'Odd Fácil - Mercados de jogadores NBA',
+  description: 'Compare jogadores da NBA com linhas atuais de mercado e acompanhe seus bilhetes pessoais.',
   metadataBase: new URL('https://odd-facil.vercel.app'),
   openGraph: {
     title: 'Odd Fácil',

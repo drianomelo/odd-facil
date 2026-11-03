@@ -12,33 +12,32 @@ Uma pessoa que acompanha NBA e quer analisar mercados de jogadores para encontra
 
 ## Product Purpose
 
-O Odd Fácil reúne estatísticas recentes, linhas e cotações para produzir uma análise aprofundada de props da NBA, registrar previsões e comparar as estimativas com o que ocorreu nos jogos.
+O Odd Fácil organiza a análise de mercados de jogadores da NBA por time e atleta. A pessoa escolhe um time, compara linhas de mercado atuais com os resultados recentes dos jogadores e mantém seus bilhetes pessoais em um painel de desempenho.
 
 ## Positioning
 
-O valor principal é a análise das previsões e dos dados dos jogadores, com acompanhamento histórico, em vez de apenas listar odds disponíveis.
+O valor principal é mostrar, de forma direta, como os jogadores têm performado em relação às linhas disponíveis no mercado, sem gerar palpites automáticos. O produto também centraliza o registro e o acompanhamento financeiro dos bilhetes pessoais.
 
 ## Operating Context
 
-O usuário consulta as recomendações antes dos jogos, acompanha os resultados depois das partidas e usa o histórico para avaliar a qualidade do modelo. A interface e as explicações são em português do Brasil.
+O usuário começa pelo time, abre um atleta e compara mercados com os jogos da temporada atual. Em uma área separada, registra e acompanha os próprios bilhetes. A interface e as explicações são em português do Brasil.
 
 ## Capabilities and Constraints
 
-- O escopo atual é NBA, com prioridade para estatísticas individuais de jogadores e possibilidade de combinar seleções em bilhetes.
+- O escopo atual é NBA: navegação time → jogador → mercado, comparação descritiva com estatísticas observadas e bilhetes pessoais.
 - O usuário não quer pagar por fontes de dados; priorizar serviços e cotas gratuitas.
 - E-sports foram removidos do escopo.
-- Previsões devem guardar a linha e a cotação observadas para que possam ser comparadas com o resultado do jogo.
-- A pré-temporada precisa ficar identificada separadamente da temporada regular.
-- O histórico ainda não tem resultados reais apurados para a versão atual do modelo; não apresentar métricas como validação antes de obtê-los.
+- Não gerar sinais automáticos nem exibir histórico de previsões. Os números recentes são resultados observados e devem ser apresentados como descrição, não como promessa ou recomendação.
+- Os bilhetes escolhidos/registrados pela pessoa ficam em Desempenho, onde ela pode acompanhar valores, resultados, retornos e removê-los.
 
 ## Evidence on Hand
 
-O projeto tem um painel NBA, análise experimental de props de jogadores e 178 previsões da versão `player-props-v0.5.0` registradas para avaliação. Ainda não há resultados reais apurados para essa versão.
+O projeto tem dados de boxscores públicos da temporada e cotações de props obtidas pela fonte gratuita configurada. Registros antigos de previsões podem permanecer armazenados, mas não fazem parte da experiência atual.
 
 ## Product Principles
 
 - Priorizar explicações e estatísticas úteis para a decisão do usuário.
-- Distinguir projeções do modelo de resultados observados.
-- Mostrar incerteza e limitações enquanto o modelo ainda não tem histórico suficiente.
+- Separar resultados observados, cotações atuais e dados dos bilhetes pessoais.
+- Mostrar quando não há linha atual ou amostra de jogos suficiente, sem inventar números.
 - Preservar o uso de fontes gratuitas.
 - Manter a pré-temporada separada na avaliação da temporada regular.

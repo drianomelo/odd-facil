@@ -11,6 +11,7 @@ import {
   resolvePlayerOpponent,
 } from '@/lib/analysis/player-props';
 import { getNbaSeasonPhase } from '@/lib/analysis/nba-season';
+import { getPlayerPropAnalysisWindow } from '@/lib/utils/date';
 
 const BASE_URL = 'https://api.prop-line.com/v1/sports/basketball_nba';
 const MARKETS: PlayerPropMarket[] = [...BETBY_PLAYER_PROP_MARKETS];
@@ -165,16 +166,26 @@ export async function getCurrentPlayerPropMarkets(): Promise<Array<{
   market: PlayerPropMarket;
   line: number;
   quotes: PlayerPropQuote[];
+  game: string;
+  commenceTime: string;
+  homeTeam: string;
+  awayTeam: string;
 }>> {
   if (!process.env.PROPLINE_API_KEY) return [];
   const { body } = await getJson(makeOddsPath(), 900);
-  return candidatesFromEvents(records(body), new Date(0), new Date(8_640_000_000_000_000))
+  const window = getPlayerPropAnalysisWindow();
+  return candidatesFromEvents(records(body), window.from, window.to)
+    .filter(candidate => getNbaSeasonPhase(String(candidate.event.commence_time)) === 'regular')
     .map(candidate => ({
       eventId: String(candidate.event.id),
       player: candidate.player,
       market: candidate.market,
       line: candidate.line,
       quotes: candidate.quotes,
+      homeTeam: String(candidate.event.home_team || ''),
+      awayTeam: String(candidate.event.away_team || ''),
+      game: `${String(candidate.event.away_team || '')} @ ${String(candidate.event.home_team || '')}`,
+      commenceTime: String(candidate.event.commence_time),
     }));
 }
 

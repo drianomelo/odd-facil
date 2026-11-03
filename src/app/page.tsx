@@ -16,9 +16,7 @@ export default function HomePage() {
           </Link>
           <nav aria-label="Navegação principal" className="flex min-w-0 items-center gap-3 overflow-x-auto text-xs font-semibold sm:gap-6 sm:text-sm">
             <Link href="/" aria-current="page" className="shrink-0 rounded-full bg-[#EAF5FC] px-3 py-2 text-[#005A9C]">Análise</Link>
-            <Link href="/history" className="shrink-0 text-slate-600 transition hover:text-[#005A9C]">Histórico</Link>
-            <Link href="/performance" className="shrink-0 text-slate-600 transition hover:text-[#005A9C]">Desempenho</Link>
-            <Link href="/manual" className="shrink-0 text-slate-600 transition hover:text-[#005A9C]">Manual</Link>
+            <Link href="/performance" className="shrink-0 text-slate-600 transition hover:text-[#005A9C]">Minhas apostas</Link>
           </nav>
         </div>
       </header>
