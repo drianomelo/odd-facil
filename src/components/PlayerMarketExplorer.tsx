@@ -5,9 +5,11 @@ import {
   ArrowLeft,
   ArrowRight,
   BarChart3,
+  CalendarDays,
   RefreshCw,
   Search,
   TrendingUp,
+  UsersRound,
 } from "lucide-react";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
 import { NBA_TEAMS, TeamLogo, getNbaTeamInfo } from "@/components/TeamLogo";
@@ -63,7 +65,7 @@ const HERO_PLAYERS = [
   { id: "1628983", name: "Shai Gilgeous-Alexander" },
   { id: "203507", name: "Giannis Antetokounmpo" },
   { id: "1641705", name: "Victor Wembanyama" },
-  { id: "1630162", name: "Anthony Edwards" },
+  { id: "202331", name: "Paul George" },
 ];
 
 const MARKETS: Market[] = [
@@ -524,22 +526,69 @@ export function PlayerMarketExplorer() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#07090B]">
-      <div className="mx-auto max-w-[1440px] px-4 pb-12 pt-8 sm:px-7 lg:px-10">
-        <section aria-labelledby="hero-players-title" className="mb-7 border-dashed border border-[#00519F] pt-4 rounded-lg overflow-hidden">
-          {/* <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 id="hero-players-title" className="text-xl font-bold tracking-tight text-white sm:text-2xl">Destaques da NBA</h1>
-              <p className="mt-1 text-xs text-white/50">Explore os jogadores e compare seus mercados nesta temporada.</p>
+      <div className="mx-auto max-w-[1440px] px-4 pb-12 sm:px-7 lg:px-0">
+        <section
+          aria-labelledby="hero-players-title"
+          className="relative left-1/2 mb-7 w-screen -translate-x-1/2 overflow-hidden border-b border-white/10"
+        >
+          <div className="mx-auto flex max-w-[1440px] items-center justify-between overflow-hidden px-4 pt-8 sm:px-7 lg:px-10">
+            <div className="flex flex-col gap-3 pb-8">
+              <div className="mb-2">
+                <h1
+                  id="hero-players-title"
+                  className="text-3xl mb-3 font-bold tracking-tight text-white sm:text-[40px]"
+                >
+                  Destaques da NBA
+                </h1>
+                <p className="mt-1 text-[13px] w-3/4 text-white/50">
+                  Escolha um time, explore seus jogadores e compare o desempenho
+                  recente de cada atleta com as linhas dos mercados disponíveis
+                  nesta temporada.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-4 rounded-full text-[15px] tracking-widest text-white">
+                <span className="inline-flex items-center gap-2.5 font-semibold">
+                  <span className="w-8 h-8 -mt-1 ring-2 ring-[#00519F] border-[3px] border-[#07090B] rounded-md bg-[#00519F] flex items-center justify-center">
+                    <UsersRound
+                      aria-hidden="true"
+                      className="w-[17px] h-[17px] text-[#93c7f7]"
+                    />
+                  </span>
+                  {players.length} Atletas analisados
+                </span>
+                <span className="inline-flex items-center gap-2.5 font-semibold">
+                  <span className="w-8 h-8 -mt-1 ring-2 ring-[#C8102E] border-[3px] border-[#07090B] rounded-md bg-[#C8102E] flex items-center justify-center">
+                    <CalendarDays
+                      aria-hidden="true"
+                      className="w-[17px] h-[17px] text-[#fc8ea0]"
+                    />
+                  </span>
+                  {season || "Temporada atual"}
+                </span>
+              </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-[#111416] px-3 py-2 text-xs text-white/60">
-              <span className="font-semibold text-[#00519F]">{season || "Temporada atual"}</span>
-              <span className="mx-2 text-white/25">·</span>{players.length} atletas analisados
+
+            <div
+              className="flex flex-row-reverse -mb-5"
+              aria-label="Imagens de jogadores da NBA"
+            >
+              {HERO_PLAYERS.map((player, index) => (
+                <div
+                  key={player.id}
+                  className={`relative shrink-0 ${index ? "-mr-40" : ""}`}
+                  style={{ zIndex: index + 1 }}
+                >
+                  <img
+                    src={`https://cdn.nba.com/headshots/nba/latest/260x190/${player.id}.png`}
+                    alt={player.name}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full"
+                  />
+                </div>
+              ))}
             </div>
-          </div> */}
-          <div className="flex" aria-label="Imagens de jogadores da NBA">
-            {HERO_PLAYERS.map((player, index) => <div key={player.id} className={`relative shrink-0 ${index ? "-ml-44" : ""}`} style={{ zIndex: index + 1 }}>
-              <img src={`https://cdn.nba.com/headshots/nba/latest/260x190/${player.id}.png`} alt={player.name} loading="lazy" decoding="async" className="w-full" />
-            </div>)}
           </div>
         </section>
 
