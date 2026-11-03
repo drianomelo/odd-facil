@@ -594,32 +594,40 @@ export function PlayerMarketExplorer() {
 
         <nav
           aria-label="Etapas da análise"
-          className="mb-6 flex flex-wrap items-center gap-2 text-sm"
+          className="mb-7 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-white/10 bg-[#111416] p-1.5 text-sm"
         >
           <button
             type="button"
+            aria-current={!selectedTeam ? "step" : undefined}
             onClick={() => {
               setSelectedTeam(null);
               setSelectedPlayerId(null);
             }}
-            className={`rounded-full px-3 py-1.5 font-semibold ${!selectedTeam ? "bg-[#00519F] text-white" : "bg-[#111416] text-white/65 ring-1 ring-white/10 hover:text-white"}`}
+            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00519F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111416] ${!selectedTeam ? "bg-[#00519F] text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}`}
           >
-            Times
+            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-current/30 text-[11px] tabular-nums">1</span>
+            <span>Times</span>
           </button>
-          <ArrowRight size={15} aria-hidden="true" className="text-slate-400" />
+          <ArrowRight size={14} aria-hidden="true" className="shrink-0 text-white/30" />
           <button
             type="button"
             disabled={!selectedTeam}
+            aria-current={selectedTeam && !selectedPlayer ? "step" : undefined}
             onClick={() => setSelectedPlayerId(null)}
-            className={`rounded-full px-3 py-1.5 font-semibold disabled:cursor-default ${selectedTeam && !selectedPlayer ? "bg-[#00519F] text-white" : "bg-[#111416] text-white/65 ring-1 ring-white/10 hover:text-white disabled:opacity-60"}`}
+            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00519F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111416] disabled:cursor-default ${selectedTeam && !selectedPlayer ? "bg-[#00519F] text-white" : "text-white/70 hover:bg-white/5 hover:text-white disabled:text-white/35"}`}
           >
-            {currentTeam?.abbreviation || "Jogadores"}
+            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-current/30 text-[11px] tabular-nums">2</span>
+            <span>{currentTeam?.abbreviation || "Jogadores"}</span>
           </button>
-          <ArrowRight size={15} aria-hidden="true" className="text-slate-400" />
+          <ArrowRight size={14} aria-hidden="true" className="shrink-0 text-white/30" />
           <span
-            className={`rounded-full px-3 py-1.5 font-semibold ${selectedPlayer ? "bg-[#00519F] text-white" : "bg-[#111416] text-white/45 ring-1 ring-white/10"}`}
+            aria-current={selectedPlayer ? "step" : undefined}
+            className={`inline-flex min-w-0 shrink-0 items-center gap-2 rounded-lg px-3 py-2 font-semibold ${selectedPlayer ? "bg-[#00519F] text-white" : "text-white/35"}`}
           >
-            {selectedPlayer?.player || "Mercados"}
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current/30 text-[11px] tabular-nums">3</span>
+            <span className="max-w-[180px] truncate sm:max-w-none">
+              {selectedPlayer?.player || "Mercados"}
+            </span>
           </span>
         </nav>
 
