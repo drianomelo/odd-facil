@@ -212,8 +212,8 @@ export async function POST(request: NextRequest) {
       });
       const hasPending = complete.some(item => item.pending);
       return NextResponse.json({ id: created.id, createdAt: created.createdAt, message: hasPending
-        ? 'Bilhete pessoal salvo. As seleções dos jogos futuros ficam pendentes até a importação dos resultados reais.'
-        : 'Bilhete externo registrado e comparado com os dados reais importados.' }, { status: 201 });
+        ? 'Bilhete pessoal salvo. As seleções ficam pendentes até a importação dos resultados reais.'
+        : 'Bilhete pessoal registrado e comparado com os dados reais importados.' }, { status: 201 });
     }
 
     if (!NBA_PREDICTIONS_ENABLED) {
@@ -296,7 +296,7 @@ export async function POST(request: NextRequest) {
       })));
       return ticket;
     });
-    return NextResponse.json({ id: created.id, createdAt: created.createdAt, message: 'Bilhete salvo para acompanhar no Histórico.' }, { status: 201 });
+    return NextResponse.json({ id: created.id, createdAt: created.createdAt, message: 'Bilhete salvo no seu controle pessoal.' }, { status: 201 });
   } catch (error) {
     console.error('[API/analysis/nba/tickets] Save failed:', error);
     return NextResponse.json({ error: 'Não foi possível salvar o bilhete.' }, { status: 500 });
@@ -413,7 +413,7 @@ export async function DELETE(request: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: 'Bilhete inválido.' }, { status: 400 });
     const deleted = await db.delete(playerPropTickets).where(eq(playerPropTickets.id, parsed.data.id)).returning({ id: playerPropTickets.id });
     if (!deleted.length) return NextResponse.json({ error: 'Bilhete não encontrado.' }, { status: 404 });
-    return NextResponse.json({ id: deleted[0].id, message: 'Bilhete excluído do Histórico.' });
+    return NextResponse.json({ id: deleted[0].id, message: 'Bilhete removido do seu controle pessoal.' });
   } catch (error) {
     console.error('[API/analysis/nba/tickets] Delete failed:', error);
     return NextResponse.json({ error: 'Não foi possível excluir o bilhete.' }, { status: 500 });
