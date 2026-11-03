@@ -1,131 +1,287 @@
-'use client';
+"use client";
 
-import { formatAppDateTime } from '@/lib/utils/date';
-import { PlayerPropCandidate, PlayerPropMarket } from '@/lib/analysis/player-props';
-import { PlayerAvatar } from '@/components/PlayerAvatar';
-import { TeamLogo, TeamMatchup } from '@/components/TeamLogo';
+import { formatAppDateTime } from "@/lib/utils/date";
+import {
+  PlayerPropCandidate,
+  PlayerPropMarket,
+} from "@/lib/analysis/player-props";
+import { PlayerAvatar } from "@/components/PlayerAvatar";
+import { TeamLogo, TeamMatchup } from "@/components/TeamLogo";
 
 const MARKET_LABELS: Record<PlayerPropMarket, string> = {
-  player_points: 'Pontos',
-  player_rebounds: 'Rebotes',
-  player_assists: 'Assistências',
-  player_threes: 'Cestas de 3',
-  player_points_rebounds_assists: 'Pontos + rebotes + assistências',
+  player_points: "Pontos",
+  player_rebounds: "Rebotes",
+  player_assists: "Assistências",
+  player_threes: "Cestas de 3",
+  player_points_rebounds_assists: "Pontos + rebotes + assistências",
 };
 
-export function PlayerAnalysisCard({ pick, validation, selected = false, disabled = false, onToggle }: {
+export function PlayerAnalysisCard({
+  pick,
+  validation,
+  selected = false,
+  disabled = false,
+  onToggle,
+}: {
   pick: PlayerPropCandidate;
-  validation?: { validationStatus?: 'insufficient' | 'evaluated' | 'validated'; validationSample?: number; validationGameDays?: number; brierScore?: number | null; marketBrierScore?: number | null; validationRoiPercent?: number | null };
+  validation?: {
+    validationStatus?: "insufficient" | "evaluated" | "validated";
+    validationSample?: number;
+    validationGameDays?: number;
+    brierScore?: number | null;
+    marketBrierScore?: number | null;
+    validationRoiPercent?: number | null;
+  };
   selected?: boolean;
   disabled?: boolean;
   onToggle?: (pick: PlayerPropCandidate) => void;
 }) {
-  const side = pick.recommendationSide || 'Over';
-  const isOver = side === 'Over';
+  const side = pick.recommendationSide || "Over";
+  const isOver = side === "Over";
   const probability = isOver ? pick.probabilityOver : pick.probabilityUnder;
-  const marketProbability = isOver ? pick.marketProbabilityOver : pick.marketProbabilityUnder;
+  const marketProbability = isOver
+    ? pick.marketProbabilityOver
+    : pick.marketProbabilityUnder;
   const edge = isOver ? pick.edge : pick.edgeUnder;
   const expectedValue = isOver ? pick.expectedValue : pick.expectedValueUnder;
   const price = isOver ? pick.bestOver : pick.bestUnder;
   const comparison = pick.projection - pick.line;
   const recentAverage = pick.last5Average - pick.line;
   const projectionGap = Math.abs(comparison);
-  const alignedWithRecentForm = comparison === 0 || (comparison > 0) === (recentAverage > 0);
+  const alignedWithRecentForm =
+    comparison === 0 || comparison > 0 === recentAverage > 0;
 
-  const interpretation = projectionGap < 0.5
-    ? 'A projeção está praticamente em cima da linha; a chance pode depender de poucos minutos ou posses.'
-    : `${side === 'Over' ? 'A projeção fica acima' : 'A projeção fica abaixo'} da linha por ${projectionGap.toFixed(1)} ${MARKET_LABELS[pick.market].toLowerCase()}.`;
+  const interpretation =
+    projectionGap < 0.5
+      ? "A projeção está praticamente em cima da linha; a chance pode depender de poucos minutos ou posses."
+      : `${side === "Over" ? "A projeção fica acima" : "A projeção fica abaixo"} da linha por ${projectionGap.toFixed(1)} ${MARKET_LABELS[pick.market].toLowerCase()}.`;
 
   return (
-    <article className="card space-y-3 border-[#58A9E3]/50 bg-white shadow-sm">
+    <article className="card space-y-3 border-[#00519F]/50 bg-white shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <PlayerAvatar name={pick.player} size="lg" />
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-x-1 text-xs text-court-textMuted">
-              {pick.awayTeam && pick.homeTeam
-                ? <TeamMatchup away={pick.awayTeam} home={pick.homeTeam} />
-                : pick.game}
+              {pick.awayTeam && pick.homeTeam ? (
+                <TeamMatchup away={pick.awayTeam} home={pick.homeTeam} />
+              ) : (
+                pick.game
+              )}
               <span aria-hidden="true">·</span>
-              <time dateTime={pick.commenceTime}>{formatAppDateTime(pick.commenceTime)}</time>
+              <time dateTime={pick.commenceTime}>
+                {formatAppDateTime(pick.commenceTime)}
+              </time>
             </p>
             <div className="mt-1 flex items-center gap-1.5">
               <h4 className="font-semibold text-court-text">{pick.player}</h4>
               <TeamLogo team={pick.team} size="xs" />
             </div>
-            <p className="text-sm text-court-textMuted">{MARKET_LABELS[pick.market]} · {isOver ? 'Mais de' : 'Menos de'} {pick.line}</p>
+            <p className="text-sm text-court-textMuted">
+              {MARKET_LABELS[pick.market]} · {isOver ? "Mais de" : "Menos de"}{" "}
+              {pick.line}
+            </p>
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <span className={`badge ${pick.shortlistEligible ? 'badge-success' : 'badge-warning'}`}>
-            {pick.shortlistEligible ? 'Candidato para validação' : !pick.teamVerified ? 'Exploratório · time não confirmado' : pick.sampleSize < 15 ? 'Exploratório · amostra curta' : 'Exploratório · minutos instáveis'}
+          <span
+            className={`badge ${pick.shortlistEligible ? "badge-success" : "badge-warning"}`}
+          >
+            {pick.shortlistEligible
+              ? "Candidato para validação"
+              : !pick.teamVerified
+                ? "Exploratório · time não confirmado"
+                : pick.sampleSize < 15
+                  ? "Exploratório · amostra curta"
+                  : "Exploratório · minutos instáveis"}
           </span>
-          {validation?.validationStatus === 'validated' && <span className="badge badge-success" title={`Mercado avaliado em ${validation.validationSample} palpites de ${validation.validationGameDays} dias. Brier modelo ${validation.brierScore?.toFixed(3)} vs. mercado ${validation.marketBrierScore?.toFixed(3)}; ROI histórico ${validation.validationRoiPercent?.toFixed(1)}%.`}>Mercado validado historicamente</span>}
-          {validation?.validationStatus === 'evaluated' && <span className="badge badge-warning" title={`Amostra de ${validation.validationSample} palpites em ${validation.validationGameDays} dias; os critérios definidos para validação não foram atingidos.`}>Mercado avaliado · sem validação</span>}
+          {validation?.validationStatus === "validated" && (
+            <span
+              className="badge badge-success"
+              title={`Mercado avaliado em ${validation.validationSample} palpites de ${validation.validationGameDays} dias. Brier modelo ${validation.brierScore?.toFixed(3)} vs. mercado ${validation.marketBrierScore?.toFixed(3)}; ROI histórico ${validation.validationRoiPercent?.toFixed(1)}%.`}
+            >
+              Mercado validado historicamente
+            </span>
+          )}
+          {validation?.validationStatus === "evaluated" && (
+            <span
+              className="badge badge-warning"
+              title={`Amostra de ${validation.validationSample} palpites em ${validation.validationGameDays} dias; os critérios definidos para validação não foram atingidos.`}
+            >
+              Mercado avaliado · sem validação
+            </span>
+          )}
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2 border-y border-[#58A9E3]/35 py-3 text-center">
-        <div><p className="text-xs text-court-textMuted">Projeção</p><p className="font-mono font-semibold text-court-text">{pick.projection.toFixed(1)}</p></div>
-        <div><p className="text-xs text-court-textMuted">Chance modelo</p><p className="font-mono font-semibold text-court-text">{(probability * 100).toFixed(0)}%</p></div>
-        <div><p className="text-xs text-court-textMuted">Edge / EV</p><p className="font-mono font-semibold text-court-text">{edge === undefined ? '—' : `${edge >= 0 ? '+' : ''}${(edge * 100).toFixed(1)} p.p.`}</p></div>
+      <div className="grid grid-cols-3 gap-2 border-y border-[#00519F]/35 py-3 text-center">
+        <div>
+          <p className="text-xs text-court-textMuted">Projeção</p>
+          <p className="font-mono font-semibold text-court-text">
+            {pick.projection.toFixed(1)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-court-textMuted">Chance modelo</p>
+          <p className="font-mono font-semibold text-court-text">
+            {(probability * 100).toFixed(0)}%
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-court-textMuted">Edge / EV</p>
+          <p className="font-mono font-semibold text-court-text">
+            {edge === undefined
+              ? "—"
+              : `${edge >= 0 ? "+" : ""}${(edge * 100).toFixed(1)} p.p.`}
+          </p>
+        </div>
       </div>
       <div className="space-y-1 text-xs text-court-textMuted">
-        <p>Mercado sem margem: {marketProbability === undefined ? 'indisponível' : `${(marketProbability * 100).toFixed(1)}%`} · EV experimental: {expectedValue === undefined ? '—' : `${(expectedValue * 100).toFixed(1)}%`}</p>
-        <p>Melhor odd: {price ? `${price.bookmaker} (${price.price > 0 ? '+' : ''}${price.price})` : 'sem cotação pareada'}</p>
-        <p>Adversário: {pick.teamVerified ? `${pick.opponent} · time confirmado` : 'não confirmado pelo histórico'}</p>
-        <p>Amostra: {pick.sampleSize} jogos · confiança {pick.confidence} · L5 {pick.last5Average.toFixed(1)} · L10 {pick.last10Average.toFixed(1)} · L20 {pick.last20Average.toFixed(1)}</p>
+        <p>
+          Mercado sem margem:{" "}
+          {marketProbability === undefined
+            ? "indisponível"
+            : `${(marketProbability * 100).toFixed(1)}%`}{" "}
+          · EV experimental:{" "}
+          {expectedValue === undefined
+            ? "—"
+            : `${(expectedValue * 100).toFixed(1)}%`}
+        </p>
+        <p>
+          Melhor odd:{" "}
+          {price
+            ? `${price.bookmaker} (${price.price > 0 ? "+" : ""}${price.price})`
+            : "sem cotação pareada"}
+        </p>
+        <p>
+          Adversário:{" "}
+          {pick.teamVerified
+            ? `${pick.opponent} · time confirmado`
+            : "não confirmado pelo histórico"}
+        </p>
+        <p>
+          Amostra: {pick.sampleSize} jogos · confiança {pick.confidence} · L5{" "}
+          {pick.last5Average.toFixed(1)} · L10 {pick.last10Average.toFixed(1)} ·
+          L20 {pick.last20Average.toFixed(1)}
+        </p>
       </div>
       {!!pick.contextNotes?.length && (
-        <div className="rounded-lg border border-[#58A9E3]/40 bg-[#F4FAFE] p-3">
-          <p className="text-xs font-semibold text-[#005A9C]">Elenco e contexto do jogo</p>
+        <div className="rounded-lg border border-[#00519F]/40 bg-[#F4FAFE] p-3">
+          <p className="text-xs font-semibold text-[#005A9C]">
+            Elenco e contexto do jogo
+          </p>
           <ul className="mt-1.5 space-y-1.5 text-xs leading-5 text-court-textMuted">
-            {pick.contextNotes.map(note => <li key={note}>{note}</li>)}
+            {pick.contextNotes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
           </ul>
-          <p className="mt-2 border-t border-[#58A9E3]/25 pt-2 text-[10px] leading-4 text-court-textMuted">
-            As linhas dos companheiros representam o mercado disponível, não uma confirmação de função tática. Lesões podem redistribuir oportunidades; o modelo não presume aumento automático.
+          <p className="mt-2 border-t border-[#00519F]/25 pt-2 text-[10px] leading-4 text-court-textMuted">
+            As linhas dos companheiros representam o mercado disponível, não uma
+            confirmação de função tática. Lesões podem redistribuir
+            oportunidades; o modelo não presume aumento automático.
           </p>
         </div>
       )}
-      <div className="rounded-lg border border-[#58A9E3]/40 bg-[#EAF5FC] p-3 text-sm">
+      <div className="rounded-lg border border-[#00519F]/40 bg-[#EAF5FC] p-3 text-sm">
         <p className="font-medium text-[#005A9C]">Leitura do palpite</p>
-        <p className="mt-1 text-xs leading-5 text-court-textMuted">{interpretation}</p>
+        <p className="mt-1 text-xs leading-5 text-court-textMuted">
+          {interpretation}
+        </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
-          <p className="text-xs font-semibold text-emerald-700">Sinais a favor</p>
+            <p className="text-xs font-semibold text-emerald-700">
+              Sinais a favor
+            </p>
             <ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-5 text-court-textMuted">
-              <li>A média dos últimos 5 jogos ficou {recentAverage >= 0 ? 'acima' : 'abaixo'} da linha por {Math.abs(recentAverage).toFixed(1)}.</li>
-              {alignedWithRecentForm
-                ? <li>A projeção e a média recente apontam para o mesmo lado da linha.</li>
-                : <li>A projeção diverge da média dos últimos 5; a tendência recente não confirma o lado.</li>}
-              {edge !== undefined
-                ? <li>Chance estimada {edge >= 0 ? 'supera' : 'fica abaixo'} do mercado sem margem em {Math.abs(edge * 100).toFixed(1)} pontos percentuais.</li>
-                : <li>Não há mercado sem margem calculável para comparar a chance estimada.</li>}
+              <li>
+                A média dos últimos 5 jogos ficou{" "}
+                {recentAverage >= 0 ? "acima" : "abaixo"} da linha por{" "}
+                {Math.abs(recentAverage).toFixed(1)}.
+              </li>
+              {alignedWithRecentForm ? (
+                <li>
+                  A projeção e a média recente apontam para o mesmo lado da
+                  linha.
+                </li>
+              ) : (
+                <li>
+                  A projeção diverge da média dos últimos 5; a tendência recente
+                  não confirma o lado.
+                </li>
+              )}
+              {edge !== undefined ? (
+                <li>
+                  Chance estimada {edge >= 0 ? "supera" : "fica abaixo"} do
+                  mercado sem margem em {Math.abs(edge * 100).toFixed(1)} pontos
+                  percentuais.
+                </li>
+              ) : (
+                <li>
+                  Não há mercado sem margem calculável para comparar a chance
+                  estimada.
+                </li>
+              )}
             </ul>
           </div>
           <div>
-            <p className="text-xs font-semibold text-amber-800">Pontos de atenção</p>
+            <p className="text-xs font-semibold text-amber-800">
+              Pontos de atenção
+            </p>
             <ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-5 text-court-textMuted">
-              <li>Variação recente: L5 {pick.last5Average.toFixed(1)}, L10 {pick.last10Average.toFixed(1)} e L20 {pick.last20Average.toFixed(1)}.</li>
-              {pick.minutesTrend === undefined
-                ? <li>Tendência de minutos indisponível.</li>
-                : <li>Minutos recentes {pick.minutesTrend >= 1 ? 'subiram' : 'caíram'} {Math.abs((pick.minutesTrend - 1) * 100).toFixed(0)}% contra a média da amostra.</li>}
-              {pick.opponentAverage === undefined
-                ? <li>Sem amostra direta suficiente contra este adversário para ajustar o confronto.</li>
-                : <li>Média contra o adversário: {pick.opponentAverage.toFixed(1)} em até 20 jogos recentes.</li>}
+              <li>
+                Variação recente: L5 {pick.last5Average.toFixed(1)}, L10{" "}
+                {pick.last10Average.toFixed(1)} e L20{" "}
+                {pick.last20Average.toFixed(1)}.
+              </li>
+              {pick.minutesTrend === undefined ? (
+                <li>Tendência de minutos indisponível.</li>
+              ) : (
+                <li>
+                  Minutos recentes{" "}
+                  {pick.minutesTrend >= 1 ? "subiram" : "caíram"}{" "}
+                  {Math.abs((pick.minutesTrend - 1) * 100).toFixed(0)}% contra a
+                  média da amostra.
+                </li>
+              )}
+              {pick.opponentAverage === undefined ? (
+                <li>
+                  Sem amostra direta suficiente contra este adversário para
+                  ajustar o confronto.
+                </li>
+              ) : (
+                <li>
+                  Média contra o adversário: {pick.opponentAverage.toFixed(1)}{" "}
+                  em até 20 jogos recentes.
+                </li>
+              )}
             </ul>
           </div>
         </div>
       </div>
       <details className="text-xs text-court-textMuted">
-        <summary className="cursor-pointer font-medium text-court-text">Ver cálculos e limitações do modelo</summary>
+        <summary className="cursor-pointer font-medium text-court-text">
+          Ver cálculos e limitações do modelo
+        </summary>
         <ul className="mt-2 list-disc space-y-1 pl-4">
-          {pick.reasons.map(reason => <li key={reason}>{reason}</li>)}
-          {pick.limitations.map(limitation => <li key={limitation}>{limitation}</li>)}
+          {pick.reasons.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+          {pick.limitations.map((limitation) => (
+            <li key={limitation}>{limitation}</li>
+          ))}
         </ul>
       </details>
       {onToggle && (
-        <button type="button" disabled={disabled && !selected} onClick={() => onToggle(pick)} className={`${selected ? 'btn-ghost border border-court-border' : 'btn-secondary'} w-full justify-center px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50`}>
-          {selected ? 'Remover do meu bilhete' : disabled ? 'Limite de 10 seleções' : 'Adicionar ao meu bilhete'}
+        <button
+          type="button"
+          disabled={disabled && !selected}
+          onClick={() => onToggle(pick)}
+          className={`${selected ? "btn-ghost border border-court-border" : "btn-secondary"} w-full justify-center px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50`}
+        >
+          {selected
+            ? "Remover do meu bilhete"
+            : disabled
+              ? "Limite de 10 seleções"
+              : "Adicionar ao meu bilhete"}
         </button>
       )}
     </article>

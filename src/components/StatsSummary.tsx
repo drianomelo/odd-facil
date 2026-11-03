@@ -75,7 +75,7 @@ export function StatsSummary({
 
       <div className="mt-4 flex w-fit max-w-full flex-col items-start gap-3 text-white sm:flex-row sm:gap-5">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#58A9E3]/60 bg-[#006BB6]/60">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#00519F]/60 bg-[#00519F]/60">
             <Clock3
               aria-hidden="true"
               className="h-[18px] w-[18px] text-white/90"
@@ -100,7 +100,7 @@ export function StatsSummary({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#58A9E3]/60 bg-[#005A9C]/60">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#00519F]/60 bg-[#005A9C]/60">
             <RefreshCw
               aria-hidden="true"
               className="h-[18px] w-[18px] text-white/90"
@@ -137,9 +137,9 @@ export function StatsSummary({
         {stats.map((stat) => (
           <article
             key={stat.label}
-            className="relative min-w-0 rounded-xl border border-[#58A9E3]/60 bg-[#005A9C]/55 px-2 pb-3 pt-9 text-white shadow-sm sm:px-4 sm:pb-5 sm:pt-12"
+            className="relative min-w-0 rounded-xl border border-[#00519F]/60 bg-[#005A9C]/55 px-2 pb-3 pt-9 text-white shadow-sm sm:px-4 sm:pb-5 sm:pt-12"
           >
-            <div className="absolute -top-7 h-[52px] w-[52px] overflow-hidden rounded-full border border-[#58A9E3]/60 bg-[#005A9C]">
+            <div className="absolute -top-7 h-[52px] w-[52px] overflow-hidden rounded-full border border-[#00519F]/60 bg-[#005A9C]">
               <img
                 src={stat.image}
                 alt={`Foto de partida com ${stat.player}`}
@@ -148,7 +148,7 @@ export function StatsSummary({
                 className="h-full w-full rounded-full object-cover"
               />
             </div>
-              <span className="font-mono text-lg tabular-nums sm:text-5xl">
+            <span className="font-mono text-lg tabular-nums sm:text-5xl">
               {stat.value}
             </span>
             <p className="mt-2 line-clamp-2 min-h-7 text-[9px] font-semibold leading-3 text-white/90 sm:min-h-0 sm:truncate sm:text-xs sm:leading-normal">

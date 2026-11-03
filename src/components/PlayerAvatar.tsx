@@ -82,6 +82,7 @@ const nbaPlayerIds: Record<string, string> = {
   "pascal siakam": "1627783",
   "rui hachimura": "1629060",
   "zach lavine": "203897",
+  "caleb wilson": "1643410",
 };
 
 function normalizePlayerName(name: string): string {

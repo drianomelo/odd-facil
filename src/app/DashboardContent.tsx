@@ -1,4 +1,8 @@
-import { formatAppDate, getPlayerPropAnalysisWindow, isGameStarted } from "@/lib/utils/date";
+import {
+  formatAppDate,
+  getPlayerPropAnalysisWindow,
+  isGameStarted,
+} from "@/lib/utils/date";
 import { Opportunity, Game, SourceStatus } from "@/types";
 import { OpportunityCard } from "@/components/OpportunityCard";
 import { GameAgendaCarousel } from "@/components/GameAgendaCarousel";
@@ -19,7 +23,10 @@ import { PlayerAnalysisBoard } from "@/components/PlayerAnalysisBoard";
 import { SuggestedTickets } from "@/components/SuggestedTickets";
 import { PlayerSpotlight } from "@/components/PlayerSpotlight";
 import { StatusNotice } from "@/components/StatusNotice";
-import { NBA_PREDICTIONS_ENABLED, NBA_PREDICTIONS_PAUSED_MESSAGE } from "@/lib/analysis/prediction-controls";
+import {
+  NBA_PREDICTIONS_ENABLED,
+  NBA_PREDICTIONS_PAUSED_MESSAGE,
+} from "@/lib/analysis/prediction-controls";
 import { SeasonPlayerPick } from "@/lib/analysis/season-player-picks";
 import { getAndStoreSeasonPlayerPicks } from "@/lib/analysis/season-player-pick-storage";
 import { SeasonPlayerPicks } from "@/components/SeasonPlayerPicks";
@@ -337,9 +344,12 @@ async function fetchDashboardData(): Promise<DashboardData> {
       fetch(`${baseUrl}/api/opportunities?date=${today}&qualified=true`, {
         next: { revalidate: 60 },
       }),
-      fetch(`${baseUrl}/api/games?from=${encodeURIComponent(playerPropWindow.from.toISOString())}&to=${encodeURIComponent(playerPropWindow.to.toISOString())}`, {
-        cache: "no-store",
-      }),
+      fetch(
+        `${baseUrl}/api/games?from=${encodeURIComponent(playerPropWindow.from.toISOString())}&to=${encodeURIComponent(playerPropWindow.to.toISOString())}`,
+        {
+          cache: "no-store",
+        },
+      ),
       fetch(`${baseUrl}/api/credits`, { next: { revalidate: 60 } }),
       fetch(
         `${baseUrl}/api/analysis/nba?from=${today}&to=${through}&model=${PLAYER_PROP_MODEL_VERSION}`,
@@ -367,7 +377,11 @@ async function fetchDashboardData(): Promise<DashboardData> {
     performanceRes.json(),
   ]);
 
-  let seasonPicks = { picks: [], gamesInWindow: 0, excludedScheduledGames: 0 } as NonNullable<DashboardData["season_picks"]>;
+  let seasonPicks = {
+    picks: [],
+    gamesInWindow: 0,
+    excludedScheduledGames: 0,
+  } as NonNullable<DashboardData["season_picks"]>;
   try {
     seasonPicks = await getAndStoreSeasonPlayerPicks({
       games: gamesData.games || [],
@@ -376,7 +390,8 @@ async function fetchDashboardData(): Promise<DashboardData> {
     });
   } catch (error) {
     console.error("[dashboard] Season signals unavailable:", error);
-    seasonPicks.error = "Não foi possível carregar os sinais. Confira a conexão com o banco e atualize a página.";
+    seasonPicks.error =
+      "Não foi possível carregar os sinais. Confira a conexão com o banco e atualize a página.";
   }
 
   const oddsApiConfigured = !!process.env.ODDS_API_KEY;
@@ -388,7 +403,9 @@ async function fetchDashboardData(): Promise<DashboardData> {
     next_update: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     games_today: gamesData.games || [],
     games_message: gamesData.message,
-    opportunities: NBA_PREDICTIONS_ENABLED ? opportunitiesData.opportunities || [] : [],
+    opportunities: NBA_PREDICTIONS_ENABLED
+      ? opportunitiesData.opportunities || []
+      : [],
     credit_usage: creditsData || { used: 0, remaining: 500, limit: 400 },
     sources_status: [
       {
@@ -425,10 +442,16 @@ export async function DashboardContent() {
     ? STATIC_DASHBOARD_DATA
     : await fetchDashboardData();
   const playerPropWindow = getPlayerPropAnalysisWindow();
-  const visibleRecommendations = (NBA_PREDICTIONS_ENABLED ? data.player_analysis.recommendations : []).filter((pick) => {
+  const visibleRecommendations = (
+    NBA_PREDICTIONS_ENABLED ? data.player_analysis.recommendations : []
+  ).filter((pick) => {
     const commence = Date.parse(pick.commenceTime);
-    return pick.recommendationSide !== "Under" && Number.isFinite(commence)
-      && commence >= playerPropWindow.from.getTime() && commence <= playerPropWindow.to.getTime();
+    return (
+      pick.recommendationSide !== "Under" &&
+      Number.isFinite(commence) &&
+      commence >= playerPropWindow.from.getTime() &&
+      commence <= playerPropWindow.to.getTime()
+    );
   });
   const featuredRecommendations = selectDailyPlayerPropShortlist(
     visibleRecommendations,
@@ -465,74 +488,78 @@ export async function DashboardContent() {
       return { market, allPicks, picks: uniquePicks };
     })
     .filter((group) => group.allPicks.length > 0);
-  const suggestedTickets = buildSuggestedTickets(
-    visibleRecommendations,
-  );
+  const suggestedTickets = buildSuggestedTickets(visibleRecommendations);
   const radarNotices = !NBA_PREDICTIONS_ENABLED
-    ? [{
-        tone: "info" as const,
-        title: "Palpites pausados para validação",
-        content: NBA_PREDICTIONS_PAUSED_MESSAGE,
-      }]
-    : !data.player_analysis.configured
     ? [
         {
-          tone: "warning" as const,
-          title: "Fonte não configurada",
-          content: data.player_analysis.message,
-        },
-        {
           tone: "info" as const,
-          title: "Como configurar",
-          content: (
-            <>
-              Cadastre-se no plano gratuito da PropLine (sem cartão) e
-              adicione <code className="rounded bg-white px-1">PROPLINE_API_KEY</code> ao arquivo{" "}
-              <code className="rounded bg-white px-1">.env.local</code>. A chave fica somente no seu computador.
-            </>
-          ),
+          title: "Palpites pausados para validação",
+          content: NBA_PREDICTIONS_PAUSED_MESSAGE,
         },
       ]
-    : visibleRecommendations.length
+    : !data.player_analysis.configured
       ? [
           {
             tone: "warning" as const,
-            title: "Análise experimental",
+            title: "Fonte não configurada",
+            content: data.player_analysis.message,
+          },
+          {
+            tone: "info" as const,
+            title: "Como configurar",
             content: (
               <>
-                O modelo ainda não passou por backtest. “Candidato para validação”
-                exige amostra maior, minutos estáveis e cotação pareada; o EV
-                continua experimental. Confira escalações e desfalques.
+                Cadastre-se no plano gratuito da PropLine (sem cartão) e
+                adicione{" "}
+                <code className="rounded bg-white px-1">PROPLINE_API_KEY</code>{" "}
+                ao arquivo{" "}
+                <code className="rounded bg-white px-1">.env.local</code>. A
+                chave fica somente no seu computador.
               </>
             ),
           },
-          {
-            tone: STATIC_DASHBOARD_MODE
-              ? ("info" as const)
-              : data.player_analysis.tracking?.enabled
-                ? ("success" as const)
-                : ("warning" as const),
-            title: STATIC_DASHBOARD_MODE
-              ? "Modo demonstrativo"
-              : data.player_analysis.tracking?.enabled
-                ? "Histórico ativo"
-                : "Histórico indisponível",
-            content: STATIC_DASHBOARD_MODE
-              ? "Dados demonstrativos locais; previsões e resultados não são gravados."
-              : data.player_analysis.tracking?.enabled
-                ? `${data.player_analysis.tracking.saved} novas previsões foram registradas para comparar com os resultados.`
-                : "O armazenamento do histórico está indisponível; confira DATABASE_URL e a migração do banco.",
-          },
         ]
-      : [
-          {
-            tone: "info" as const,
-            title: "Sem recomendações qualificadas",
-            content:
-              data.player_analysis.message ||
-              "Ainda não há palpites com dados suficientes para os jogos deste período. A análise usa os dados disponíveis, mas só exibe jogos de hoje, amanhã e até 6h da manhã seguinte.",
-          },
-        ];
+      : visibleRecommendations.length
+        ? [
+            {
+              tone: "warning" as const,
+              title: "Análise experimental",
+              content: (
+                <>
+                  O modelo ainda não passou por backtest. “Candidato para
+                  validação” exige amostra maior, minutos estáveis e cotação
+                  pareada; o EV continua experimental. Confira escalações e
+                  desfalques.
+                </>
+              ),
+            },
+            {
+              tone: STATIC_DASHBOARD_MODE
+                ? ("info" as const)
+                : data.player_analysis.tracking?.enabled
+                  ? ("success" as const)
+                  : ("warning" as const),
+              title: STATIC_DASHBOARD_MODE
+                ? "Modo demonstrativo"
+                : data.player_analysis.tracking?.enabled
+                  ? "Histórico ativo"
+                  : "Histórico indisponível",
+              content: STATIC_DASHBOARD_MODE
+                ? "Dados demonstrativos locais; previsões e resultados não são gravados."
+                : data.player_analysis.tracking?.enabled
+                  ? `${data.player_analysis.tracking.saved} novas previsões foram registradas para comparar com os resultados.`
+                  : "O armazenamento do histórico está indisponível; confira DATABASE_URL e a migração do banco.",
+            },
+          ]
+        : [
+            {
+              tone: "info" as const,
+              title: "Sem recomendações qualificadas",
+              content:
+                data.player_analysis.message ||
+                "Ainda não há palpites com dados suficientes para os jogos deste período. A análise usa os dados disponíveis, mas só exibe jogos de hoje, amanhã e até 6h da manhã seguinte.",
+            },
+          ];
 
   return (
     <div className="animate-in overflow-x-clip">
@@ -547,7 +574,7 @@ export async function DashboardContent() {
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-0 h-full w-full bg-[#006BB6]"
+          className="pointer-events-none absolute left-0 top-0 h-full w-full bg-[#00519F]"
           style={{ clipPath: "polygon(0% 0%, 0% 100%, 100% 70%, 100% 0%)" }}
         />
         <div className="relative mx-auto grid min-h-[80svh] grid-cols-1 items-stretch lg:grid-cols-[minmax(270px,1fr)_minmax(260px,0.8fr)_minmax(280px,1fr)]">
@@ -568,10 +595,13 @@ export async function DashboardContent() {
           <div className="relative z-10 order-2 flex items-center px-6 py-7 sm:px-10 lg:order-1 lg:px-12 lg:py-12">
             <StatsSummary
               opportunities={qualifiedOps.length}
-              playerPicks={data.season_picks?.picks.length ?? recommendationsByMarket.reduce(
-                (total, group) => total + group.picks.length,
-                0,
-              )}
+              playerPicks={
+                data.season_picks?.picks.length ??
+                recommendationsByMarket.reduce(
+                  (total, group) => total + group.picks.length,
+                  0,
+                )
+              }
               playerAnalysisConfigured={data.player_analysis.configured}
               games={scheduledGames.length}
               lastUpdate={data.last_update}
@@ -584,141 +614,150 @@ export async function DashboardContent() {
       </section>
 
       <div className="mx-auto max-w-7xl px-4 pt-8 pb-8 sm:px-6 sm:pt-16 lg:px-8">
-        <GameAgendaCarousel games={scheduledGames} message={data.games_message} />
+        <GameAgendaCarousel
+          games={scheduledGames}
+          message={data.games_message}
+        />
 
         {!STATIC_DASHBOARD_MODE && (
           <>
             <SeasonPlayerPicks
               picks={data.season_picks?.picks || []}
               gamesInWindow={data.season_picks?.gamesInWindow || 0}
-              excludedScheduledGames={data.season_picks?.excludedScheduledGames || 0}
+              excludedScheduledGames={
+                data.season_picks?.excludedScheduledGames || 0
+              }
               note={data.season_picks?.note}
               error={data.season_picks?.error}
               trackedCount={data.season_picks?.trackedCount}
             />
-            <SeasonSuggestedTickets tickets={buildSeasonSuggestedTickets(data.season_picks?.picks || [])} />
+            <SeasonSuggestedTickets
+              tickets={buildSeasonSuggestedTickets(
+                data.season_picks?.picks || [],
+              )}
+            />
           </>
         )}
 
-        {NBA_PREDICTIONS_ENABLED && <section
-          aria-labelledby="player-analysis-heading"
-          className="mt-10 space-y-4 sm:mt-16"
-        >
-          <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
-            <div className="min-w-0">
-              <h3
-                id="player-analysis-heading"
-                className="text-3xl font-bold text-black sm:text-[44px]"
-              >
-                Radar de props de jogadores
-              </h3>
-              <p className="mt-2 w-full text-sm text-black/50 sm:w-3/4 sm:text-base">
-                Projeções próprias a partir de logs e minutos. O radar organiza
-                sinais para validação; ainda não são recomendações finais.
-              </p>
+        {NBA_PREDICTIONS_ENABLED && (
+          <section
+            aria-labelledby="player-analysis-heading"
+            className="mt-10 space-y-4 sm:mt-16"
+          >
+            <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:gap-4">
+              <div className="min-w-0">
+                <h3
+                  id="player-analysis-heading"
+                  className="text-3xl font-bold text-black sm:text-[44px]"
+                >
+                  Radar de props de jogadores
+                </h3>
+                <p className="mt-2 w-full text-sm text-black/50 sm:w-3/4 sm:text-base">
+                  Projeções próprias a partir de logs e minutos. O radar
+                  organiza sinais para validação; ainda não são recomendações
+                  finais.
+                </p>
+              </div>
+              <div className="shrink-0 pt-1">
+                <StatusNotice notices={radarNotices} />
+              </div>
             </div>
-            <div className="shrink-0 pt-1">
-              <StatusNotice notices={radarNotices} />
-            </div>
-          </div>
 
-          {!data.player_analysis.configured ? (
-            null
-          ) : visibleRecommendations.length ? (
-            <>
-              <SuggestedTickets
-                tickets={suggestedTickets}
-                saveEnabled={!STATIC_DASHBOARD_MODE}
-              />
-              <PlayerAnalysisBoard
-                saveEnabled={!STATIC_DASHBOARD_MODE}
-                groups={recommendationsByMarket.map(
-                  ({ market, allPicks, picks }) => ({
-                    market,
-                    totalCount: allPicks.length,
-                    eligibleCount: allPicks.filter(
-                      (pick) => pick.shortlistEligible,
-                    ).length,
-                    picks,
-                    performance: data.player_performance.byMarket.find(
-                      (row) => row.market === market,
-                    ),
-                  }),
+            {!data.player_analysis
+              .configured ? null : visibleRecommendations.length ? (
+              <>
+                <SuggestedTickets
+                  tickets={suggestedTickets}
+                  saveEnabled={!STATIC_DASHBOARD_MODE}
+                />
+                <PlayerAnalysisBoard
+                  saveEnabled={!STATIC_DASHBOARD_MODE}
+                  groups={recommendationsByMarket.map(
+                    ({ market, allPicks, picks }) => ({
+                      market,
+                      totalCount: allPicks.length,
+                      eligibleCount: allPicks.filter(
+                        (pick) => pick.shortlistEligible,
+                      ).length,
+                      picks,
+                      performance: data.player_performance.byMarket.find(
+                        (row) => row.market === market,
+                      ),
+                    }),
+                  )}
+                />
+                <p className="text-xs text-slate-600">
+                  Acompanhamento: {data.player_performance.totalForecasts}{" "}
+                  registradas · {data.player_performance.pending} pendentes ·{" "}
+                  {data.player_performance.settled} apuradas
+                  {data.player_performance.hitRate !== null
+                    ? ` · acerto ${(data.player_performance.hitRate * 100).toFixed(1)}%`
+                    : ""}
+                  {data.player_performance.brierScore !== null
+                    ? ` · Brier ${data.player_performance.brierScore.toFixed(3)}`
+                    : ""}
+                  {data.player_performance.roiPercent !== null
+                    ? ` · ROI ${data.player_performance.roiPercent.toFixed(1)}% (${data.player_performance.betsWithOdds} cotações)`
+                    : ""}
+                </p>
+                <p className="text-xs text-court-textMuted">
+                  Métricas abaixo acompanham a temporada regular do modelo{" "}
+                  {data.player_performance.modelVersion}; a pré-temporada fica
+                  separada no histórico.
+                </p>
+                {data.player_performance.settled > 0 && (
+                  <div className="overflow-x-auto rounded-xl border border-[#00519F]/50 bg-white">
+                    <table className="min-w-full text-left text-xs">
+                      <thead className="bg-[#EAF5FC] text-slate-600">
+                        <tr>
+                          <th className="p-2">Mercado</th>
+                          <th className="p-2">Apuradas</th>
+                          <th className="p-2">W-L-P</th>
+                          <th className="p-2">Acerto</th>
+                          <th className="p-2">Erro médio</th>
+                          <th className="p-2">Brier</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.player_performance.byMarket
+                          .filter((row) => row.settled > 0)
+                          .map((row) => (
+                            <tr
+                              key={row.market}
+                              className="border-t border-[#00519F]/30"
+                            >
+                              <td className="p-2">
+                                {propMarketLabel(row.market)}
+                              </td>
+                              <td className="p-2">{row.settled}</td>
+                              <td className="p-2">
+                                {row.wins}-{row.losses}-{row.pushes}
+                              </td>
+                              <td className="p-2">
+                                {row.hitRate === null
+                                  ? "—"
+                                  : `${(row.hitRate * 100).toFixed(1)}%`}
+                              </td>
+                              <td className="p-2">
+                                {row.meanAbsoluteError === null
+                                  ? "—"
+                                  : row.meanAbsoluteError.toFixed(1)}
+                              </td>
+                              <td className="p-2">
+                                {row.brierScore === null
+                                  ? "—"
+                                  : row.brierScore.toFixed(3)}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-              />
-              <p className="text-xs text-slate-600">
-                Acompanhamento: {data.player_performance.totalForecasts}{" "}
-                registradas · {data.player_performance.pending} pendentes ·{" "}
-                {data.player_performance.settled} apuradas
-                {data.player_performance.hitRate !== null
-                  ? ` · acerto ${(data.player_performance.hitRate * 100).toFixed(1)}%`
-                  : ""}
-                {data.player_performance.brierScore !== null
-                  ? ` · Brier ${data.player_performance.brierScore.toFixed(3)}`
-                  : ""}
-                {data.player_performance.roiPercent !== null
-                  ? ` · ROI ${data.player_performance.roiPercent.toFixed(1)}% (${data.player_performance.betsWithOdds} cotações)`
-                  : ""}
-              </p>
-              <p className="text-xs text-court-textMuted">
-                Métricas abaixo acompanham a temporada regular do modelo{" "}
-                {data.player_performance.modelVersion}; a pré-temporada fica
-                separada no histórico.
-              </p>
-              {data.player_performance.settled > 0 && (
-                <div className="overflow-x-auto rounded-xl border border-[#58A9E3]/50 bg-white">
-                  <table className="min-w-full text-left text-xs">
-                    <thead className="bg-[#EAF5FC] text-slate-600">
-                      <tr>
-                        <th className="p-2">Mercado</th>
-                        <th className="p-2">Apuradas</th>
-                        <th className="p-2">W-L-P</th>
-                        <th className="p-2">Acerto</th>
-                        <th className="p-2">Erro médio</th>
-                        <th className="p-2">Brier</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.player_performance.byMarket
-                        .filter((row) => row.settled > 0)
-                        .map((row) => (
-                          <tr
-                            key={row.market}
-                            className="border-t border-[#58A9E3]/30"
-                          >
-                            <td className="p-2">
-                              {propMarketLabel(row.market)}
-                            </td>
-                            <td className="p-2">{row.settled}</td>
-                            <td className="p-2">
-                              {row.wins}-{row.losses}-{row.pushes}
-                            </td>
-                            <td className="p-2">
-                              {row.hitRate === null
-                                ? "—"
-                                : `${(row.hitRate * 100).toFixed(1)}%`}
-                            </td>
-                            <td className="p-2">
-                              {row.meanAbsoluteError === null
-                                ? "—"
-                                : row.meanAbsoluteError.toFixed(1)}
-                            </td>
-                            <td className="p-2">
-                              {row.brierScore === null
-                                ? "—"
-                                : row.brierScore.toFixed(3)}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          ) : (
-            null
-          )}
-        </section>}
+              </>
+            ) : null}
+          </section>
+        )}
 
         {(qualifiedOps.length > 0 || unqualifiedOps.length > 0) && (
           <section
@@ -748,7 +787,7 @@ export async function DashboardContent() {
             )}
 
             {qualifiedOps.length === 0 && (
-              <div className="card border-[#58A9E3]/50 bg-[#F4FAFE] py-8 text-center">
+              <div className="card border-[#00519F]/50 bg-[#F4FAFE] py-8 text-center">
                 <svg
                   className="mx-auto mb-4 h-12 w-12 text-[#005A9C]/70"
                   fill="none"
@@ -775,7 +814,7 @@ export async function DashboardContent() {
 
             {unqualifiedOps.length > 0 && (
               <details className="group">
-                <summary className="cursor-pointer flex items-center justify-between rounded-xl border border-[#58A9E3]/40 bg-white p-4 transition-colors hover:border-[#005A9C]/50 hover:bg-[#F4FAFE]">
+                <summary className="cursor-pointer flex items-center justify-between rounded-xl border border-[#00519F]/40 bg-white p-4 transition-colors hover:border-[#005A9C]/50 hover:bg-[#F4FAFE]">
                   <span className="font-medium text-court-text">
                     Ver oportunidades não qualificadas ({unqualifiedOps.length})
                   </span>
@@ -793,7 +832,7 @@ export async function DashboardContent() {
                     />
                   </svg>
                 </summary>
-                <div className="grid gap-4 border-t border-[#58A9E3]/30 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 border-t border-[#00519F]/30 p-4 sm:grid-cols-2 lg:grid-cols-3">
                   {unqualifiedOps.map((opp) => (
                     <OpportunityCard key={opp.id} opportunity={opp} />
                   ))}
@@ -804,7 +843,6 @@ export async function DashboardContent() {
         )}
 
         <GameTable games={scheduledGames} />
-
       </div>
     </div>
   );

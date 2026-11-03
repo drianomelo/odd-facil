@@ -18,7 +18,7 @@ export function GameCard({ game }: GameCardProps) {
   const winnerMarket = game.markets.find((market) => market.market === "h2h");
   const awayInfo = getNbaTeamInfo(game.away_team.abbreviation);
   const homeInfo = getNbaTeamInfo(game.home_team.abbreviation);
-  const awayColor = awayInfo?.color || "#006BB6";
+  const awayColor = awayInfo?.color || "#00519F";
   const homeColor = homeInfo?.color || "#ED174B";
 
   return (
@@ -43,7 +43,7 @@ export function GameCard({ game }: GameCardProps) {
           className={`absolute right-3 top-3 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide sm:right-4 sm:top-4 ${
             isLive
               ? "animate-pulse border-[#ed174b]/25 bg-[#ed174b]/10 text-[#b3133b]"
-              : "border-[#58A9E3]/40 bg-[#EAF5FC] text-[#005A9C]"
+              : "border-[#00519F]/40 bg-[#EAF5FC] text-[#005A9C]"
           }`}
         >
           {isLive ? "AO VIVO" : StatusLabel[game.status] || game.status}
@@ -62,7 +62,7 @@ export function GameCard({ game }: GameCardProps) {
 
         <div className="flex flex-col items-center gap-1.5">
           {!isLive && !isFinished && (
-            <span className="mb-0.5 rounded-full border border-[#58A9E3]/40 bg-white/85 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide text-[#005A9C]">
+            <span className="mb-0.5 rounded-full border border-[#00519F]/40 bg-white/85 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide text-[#005A9C]">
               {StatusLabel[game.status] || game.status}
             </span>
           )}
