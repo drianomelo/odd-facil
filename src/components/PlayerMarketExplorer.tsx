@@ -122,6 +122,7 @@ type SeasonResponse = {
   error?: string;
 };
 const MIN_AVERAGE_MINUTES = 20;
+const MIN_5_OF_5_OVER_DECIMAL_ODDS = 1.6;
 
 function normalize(value: string) {
   return value
@@ -154,6 +155,14 @@ function bestOverQuote(marketLine: MarketLine) {
   return marketLine.quotes
     .filter((quote) => quote.side === "Over")
     .sort((a, b) => decimalPrice(b.price) - decimalPrice(a.price))[0];
+}
+
+function minimumOverDecimalPrice(marketLine: MarketLine) {
+  const prices = marketLine.quotes
+    .filter((quote) => quote.side === "Over")
+    .map((quote) => decimalPrice(quote.price))
+    .filter(Number.isFinite);
+  return prices.length ? Math.min(...prices) : null;
 }
 
 function marketLineKey(marketLine: MarketLine) {
@@ -376,6 +385,14 @@ export function PlayerMarketExplorer() {
         (item) => item.id === marketLine.market,
       );
       if (!player || !marketOption || player.logs.length < 5) return [];
+      // Require every quoted Over price to clear the floor. This avoids a
+      // single outlier making an otherwise unrealistic line look eligible.
+      const minimumOverPrice = minimumOverDecimalPrice(marketLine);
+      if (
+        minimumOverPrice === null ||
+        minimumOverPrice < MIN_5_OF_5_OVER_DECIMAL_ODDS
+      )
+        return [];
       // Only compare a player's own team's current line and exactly five games
       // from the configured current season.
       if (
@@ -427,6 +444,12 @@ export function PlayerMarketExplorer() {
           (item) => item.id === marketLine.market,
         );
         if (!player || !marketOption) return [];
+        const minimumOverPrice = minimumOverDecimalPrice(marketLine);
+        if (
+          minimumOverPrice === null ||
+          minimumOverPrice < MIN_5_OF_5_OVER_DECIMAL_ODDS
+        )
+          return [];
         const sample = player.logs.slice(0, 10);
         if (sample.length < 3) return [];
         const values = sample.map(marketOption.stat);
@@ -526,27 +549,12 @@ export function PlayerMarketExplorer() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#07090B]">
-      <div className="mx-auto max-w-[1440px] px-4 pb-12 sm:px-7 lg:px-0">
-        <section
-          aria-labelledby="hero-players-title"
-          className="relative left-1/2 mb-7 w-screen -translate-x-1/2 overflow-hidden border-b border-white/10"
-        >
+      <section
+        aria-labelledby="hero-players-title"
+        className="mb-7 w-full overflow-hidden border-b border-white/10"
+      >
           <div className="mx-auto flex max-w-[1440px] items-center justify-between overflow-hidden px-4 pt-3 sm:px-7 lg:px-10">
             <div className="flex flex-col gap-3">
-              {/* <div className="mb-2">
-                <h1
-                  id="hero-players-title"
-                  className="text-3xl mb-3 font-bold tracking-tight text-white sm:text-[40px]"
-                >
-                  Destaques da NBA
-                </h1>
-                <p className="mt-1 text-[13px] w-3/4 text-white/50">
-                  Escolha um time, explore seus jogadores e compare o desempenho
-                  recente de cada atleta com as linhas dos mercados disponíveis
-                  nesta temporada.
-                </p>
-              </div> */}
-
               <div className="flex flex-col gap-5 rounded-full text-base tracking-widest text-white">
                 <span className="inline-flex items-center gap-3 font-semibold">
                   <span className="w-10 h-10 -mt-1 shadow-[0_0_0_4px_rgba(0,208,132,0.12)] border-2 border-[#00D084] rounded-full bg-[#07090B] flex items-center justify-center animate-pulse">
@@ -555,7 +563,8 @@ export function PlayerMarketExplorer() {
                       className="w-[17px] h-[17px] text-[#00D084]"
                     />
                   </span>
-                  {players.length} Atletas analisados
+                  <span className="text-[#00D084] -mr-1">{players.length}</span>{" "}
+                  Atletas analisados
                 </span>
                 <span className="inline-flex items-center gap-3 font-semibold">
                   <span className="w-10 h-10 -mt-1 shadow-[0_0_0_4px_rgba(200,16,46,0.12)] border-2 border-[#C8102E] rounded-full bg-[#07090B] flex items-center justify-center animate-pulse">
@@ -564,13 +573,13 @@ export function PlayerMarketExplorer() {
                       className="w-[17px] h-[17px] text-[#C8102E]"
                     />
                   </span>
-                  {season || "Temporada atual"}
+                  Temporada <span className="-ml-1 text-[#C8102E]">{season || "Temporada atual"}</span>
                 </span>
               </div>
             </div>
 
             <div
-              className="flex flex-row-reverse -mb-5"
+              className="flex flex-row-reverse"
               aria-label="Imagens de jogadores da NBA"
             >
               {HERO_PLAYERS.map((player, index) => (
@@ -590,13 +599,15 @@ export function PlayerMarketExplorer() {
               ))}
             </div>
           </div>
-        </section>
+      </section>
+
+      <div className="mx-auto max-w-[1440px] px-4 pb-12 sm:px-7 lg:px-0">
 
         <nav aria-label="Etapas da análise" className="mb-7 w-full py-2">
-          <div className="relative grid w-full grid-cols-3">
+          <div className="relative flex w-full items-start">
             <div
               aria-hidden="true"
-              className="absolute left-[16.6667%] right-[16.6667%] top-[23px] h-0.5 bg-white/20"
+              className="absolute left-6 right-6 top-[23px] h-0.5 bg-white/20"
             >
               <div
                 className="h-full bg-[#00519F] transition-[width] duration-300"
@@ -613,7 +624,7 @@ export function PlayerMarketExplorer() {
                 setSelectedTeam(null);
                 setSelectedPlayerId(null);
               }}
-              className="group relative z-10 flex min-w-0 flex-col items-center gap-2 rounded-md text-xs font-semibold text-white/80 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00519F] focus-visible:ring-offset-4 focus-visible:ring-offset-[#07090B] sm:text-sm"
+              className="group relative z-10 flex min-w-0 flex-1 flex-col items-start gap-2 rounded-md text-xs font-semibold text-white/80 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00519F] focus-visible:ring-offset-4 focus-visible:ring-offset-[#07090B] sm:text-sm"
             >
               <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#00519F] bg-[#07090B] text-[#00519F] shadow-[0_0_0_4px_rgba(0,81,159,0.12)]">
                 <UsersRound aria-hidden="true" className="h-5 w-5" />
@@ -628,7 +639,7 @@ export function PlayerMarketExplorer() {
                 selectedTeam && !selectedPlayer ? "step" : undefined
               }
               onClick={() => setSelectedPlayerId(null)}
-              className={`group relative z-10 flex min-w-0 flex-col items-center gap-2 rounded-md text-xs font-semibold transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00519F] focus-visible:ring-offset-4 focus-visible:ring-offset-[#07090B] disabled:cursor-default disabled:text-white/35 sm:text-sm ${selectedTeam ? "text-white" : "text-white/55"}`}
+              className={`group relative z-10 flex min-w-0 flex-1 flex-col items-center gap-2 rounded-md text-xs font-semibold transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00519F] focus-visible:ring-offset-4 focus-visible:ring-offset-[#07090B] disabled:cursor-default disabled:text-white/35 sm:text-sm ${selectedTeam ? "text-white" : "text-white/55"}`}
             >
               <span
                 className={`flex h-12 w-12 items-center justify-center rounded-full border-2 bg-[#07090B] transition-colors ${selectedTeam ? "border-[#00519F] shadow-[0_0_0_4px_rgba(0,81,159,0.12)]" : "border-white/20"}`}
@@ -646,7 +657,7 @@ export function PlayerMarketExplorer() {
 
             <span
               aria-current={selectedPlayer ? "step" : undefined}
-              className={`relative z-10 flex min-w-0 flex-col items-center gap-2 text-xs font-semibold sm:text-sm ${selectedPlayer ? "text-white" : "text-white/35"}`}
+              className={`relative z-10 flex min-w-0 flex-1 flex-col items-end gap-2 text-right text-xs font-semibold sm:text-sm ${selectedPlayer ? "text-white" : "text-white/35"}`}
             >
               <span
                 className={`flex h-12 w-12 items-center justify-center rounded-full border-2 bg-[#07090B] transition-colors ${selectedPlayer ? "border-[#00519F] shadow-[0_0_0_4px_rgba(0,81,159,0.12)]" : "border-white/20"}`}
@@ -744,7 +755,6 @@ export function PlayerMarketExplorer() {
               {perfectFiveLines.length ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {perfectFiveLines.map((item) => {
-                    const quote = bestOverQuote(item.marketLine);
                     const marketOption = MARKETS.find(
                       (option) => option.id === item.marketLine.market,
                     )!;
@@ -792,18 +802,13 @@ export function PlayerMarketExplorer() {
                             5/5 · 100%
                           </span>
                         </div>
-                        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/8 pt-3">
+                        <div className="mt-4 border-t border-white/8 pt-3">
                           <p className="text-sm font-semibold text-white">
                             {marketOption.label} · Mais de{" "}
                             <span className="text-[#00D084]">
                               {item.marketLine.line}
                             </span>
                           </p>
-                          <span className="text-xs font-bold text-white/70">
-                            {quote
-                              ? `${quote.price > 0 ? "+" : ""}${quote.price}`
-                              : "Odd indisponível"}
-                          </span>
                         </div>
                         <div className="mt-3 grid grid-cols-3 gap-1.5">
                           {getLineRates(item.player, item.marketLine).map(
@@ -983,7 +988,6 @@ export function PlayerMarketExplorer() {
               {teamHighlights.length ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {teamHighlights.map((item) => {
-                    const quote = bestOverQuote(item.marketLine);
                     const marketOption = MARKETS.find(
                       (option) => option.id === item.marketLine.market,
                     )!;
@@ -1015,11 +1019,6 @@ export function PlayerMarketExplorer() {
                               {item.hits}/{item.sample} acima
                             </p>
                           </div>
-                          <span className="text-right text-xs font-semibold text-white/60">
-                            {quote
-                              ? `${quote.price > 0 ? "+" : ""}${quote.price}`
-                              : "Odd indisponível"}
-                          </span>
                         </div>
                         <div className="mt-3 grid grid-cols-3 gap-1.5">
                           {getLineRates(item.player, item.marketLine).map(
