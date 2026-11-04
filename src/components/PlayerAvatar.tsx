@@ -47,7 +47,7 @@ const nbaPlayerIds: Record<string, string> = {
   "derrick white": "1628401",
   "jrue holiday": "201950",
   "julius randle": "203944",
-  "rj barrett": "1629629",
+  "rj barrett": "1629628",
   "desmond bane": "1630217",
   "evan mobley": "1630596",
   "jaren jackson jr": "1628991",

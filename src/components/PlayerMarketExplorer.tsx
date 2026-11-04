@@ -502,6 +502,9 @@ export function PlayerMarketExplorer() {
   const logs = selectedPlayer
     ? [...selectedPlayer.logs].slice(0, gameWindow).reverse()
     : [];
+  const recentGameSummary = selectedPlayer
+    ? selectedPlayer.logs.slice(0, 10)
+    : [];
   const recentValues = selectedPlayer ? logs.map(market.stat) : [];
   const maxValue = Math.max(1, lineNumber ?? 0, ...recentValues) * 1.12;
   const hitCount =
@@ -1466,6 +1469,87 @@ export function PlayerMarketExplorer() {
                         este jogador.
                       </p>
                     )}
+
+                    <section
+                      aria-labelledby="recent-games-title"
+                      className="mt-5 overflow-hidden rounded-xl border border-white/10 bg-[#101315]"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+                        <div>
+                          <h4
+                            id="recent-games-title"
+                            className="text-sm font-bold text-white"
+                          >
+                            Resumo das últimas partidas
+                          </h4>
+                          <p className="mt-0.5 text-[10px] text-white/45">
+                            Temporada {season} · partidas mais recentes primeiro
+                          </p>
+                        </div>
+                        <span className="rounded-md bg-[#15181B] px-2 py-1 text-[10px] font-semibold text-white/60">
+                          {recentGameSummary.length}{" "}
+                          {recentGameSummary.length === 1 ? "jogo" : "jogos"}
+                        </span>
+                      </div>
+
+                      {recentGameSummary.length ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[680px] text-left text-xs">
+                            <thead className="bg-[#15181B] text-[9px] font-bold uppercase tracking-wider text-white/45">
+                              <tr>
+                                <th className="px-4 py-2.5">Data</th>
+                                <th className="px-3 py-2.5">Adversário</th>
+                                <th className="px-3 py-2.5 text-right">MIN</th>
+                                <th className="px-3 py-2.5 text-right">PTS</th>
+                                <th className="px-3 py-2.5 text-right">REB</th>
+                                <th className="px-3 py-2.5 text-right">AST</th>
+                                <th className="px-3 py-2.5 text-right">3PM</th>
+                                <th className="px-4 py-2.5 text-right">PRA</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                              {recentGameSummary.map((log) => (
+                                <tr key={log.eventId} className="text-white/75">
+                                  <td className="whitespace-nowrap px-4 py-3 font-medium text-white/55">
+                                    {dateLabel(log.date)}
+                                  </td>
+                                  <td className="px-3 py-3">
+                                    <span className="inline-flex items-center gap-2 font-semibold text-white/80">
+                                      <TeamLogo team={log.opponent} size="xs" />
+                                      {getNbaTeamInfo(log.opponent)?.abbreviation ||
+                                        log.opponent}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-3 text-right tabular-nums">
+                                    {formatNumber(log.minutes)}
+                                  </td>
+                                  <td className="px-3 py-3 text-right font-bold tabular-nums text-white">
+                                    {log.points}
+                                  </td>
+                                  <td className="px-3 py-3 text-right tabular-nums">
+                                    {log.rebounds}
+                                  </td>
+                                  <td className="px-3 py-3 text-right tabular-nums">
+                                    {log.assists}
+                                  </td>
+                                  <td className="px-3 py-3 text-right tabular-nums">
+                                    {log.threes}
+                                  </td>
+                                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-[#00D084]">
+                                    {log.points + log.rebounds + log.assists}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="px-4 py-5 text-xs text-white/50">
+                          O resumo aparece assim que houver partidas registradas
+                          para este atleta na temporada.
+                        </p>
+                      )}
+                    </section>
 
                     <div className="mt-5 border-t border-white/10 pt-4">
                       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/50">
