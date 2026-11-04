@@ -531,9 +531,9 @@ export function PlayerMarketExplorer() {
           aria-labelledby="hero-players-title"
           className="relative left-1/2 mb-7 w-screen -translate-x-1/2 overflow-hidden border-b border-white/10"
         >
-          <div className="mx-auto flex max-w-[1440px] items-center justify-between overflow-hidden px-4 pt-8 sm:px-7 lg:px-10">
-            <div className="flex flex-col gap-3 pb-8">
-              <div className="mb-2">
+          <div className="mx-auto flex max-w-[1440px] items-center justify-between overflow-hidden px-4 pt-3 sm:px-7 lg:px-10">
+            <div className="flex flex-col gap-3">
+              {/* <div className="mb-2">
                 <h1
                   id="hero-players-title"
                   className="text-3xl mb-3 font-bold tracking-tight text-white sm:text-[40px]"
@@ -545,23 +545,23 @@ export function PlayerMarketExplorer() {
                   recente de cada atleta com as linhas dos mercados disponíveis
                   nesta temporada.
                 </p>
-              </div>
+              </div> */}
 
-              <div className="flex flex-col gap-4 rounded-full text-[15px] tracking-widest text-white">
-                <span className="inline-flex items-center gap-2.5 font-semibold">
-                  <span className="w-8 h-8 -mt-1 ring-2 ring-[#00519F] border-[3px] border-[#07090B] rounded-md bg-[#00519F] flex items-center justify-center">
+              <div className="flex flex-col gap-5 rounded-full text-base tracking-widest text-white">
+                <span className="inline-flex items-center gap-3 font-semibold">
+                  <span className="w-10 h-10 -mt-1 shadow-[0_0_0_4px_rgba(0,208,132,0.12)] border-2 border-[#00D084] rounded-full bg-[#07090B] flex items-center justify-center animate-pulse">
                     <UsersRound
                       aria-hidden="true"
-                      className="w-[17px] h-[17px] text-[#93c7f7]"
+                      className="w-[17px] h-[17px] text-[#00D084]"
                     />
                   </span>
                   {players.length} Atletas analisados
                 </span>
-                <span className="inline-flex items-center gap-2.5 font-semibold">
-                  <span className="w-8 h-8 -mt-1 ring-2 ring-[#C8102E] border-[3px] border-[#07090B] rounded-md bg-[#C8102E] flex items-center justify-center">
+                <span className="inline-flex items-center gap-3 font-semibold">
+                  <span className="w-10 h-10 -mt-1 shadow-[0_0_0_4px_rgba(200,16,46,0.12)] border-2 border-[#C8102E] rounded-full bg-[#07090B] flex items-center justify-center animate-pulse">
                     <CalendarDays
                       aria-hidden="true"
-                      className="w-[17px] h-[17px] text-[#fc8ea0]"
+                      className="w-[17px] h-[17px] text-[#C8102E]"
                     />
                   </span>
                   {season || "Temporada atual"}
@@ -592,43 +592,76 @@ export function PlayerMarketExplorer() {
           </div>
         </section>
 
-        <nav
-          aria-label="Etapas da análise"
-          className="mb-7 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-white/10 bg-[#111416] p-1.5 text-sm"
-        >
-          <button
-            type="button"
-            aria-current={!selectedTeam ? "step" : undefined}
-            onClick={() => {
-              setSelectedTeam(null);
-              setSelectedPlayerId(null);
-            }}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00519F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111416] ${!selectedTeam ? "bg-[#00519F] text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}`}
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-current/30 text-[11px] tabular-nums">1</span>
-            <span>Times</span>
-          </button>
-          <ArrowRight size={14} aria-hidden="true" className="shrink-0 text-white/30" />
-          <button
-            type="button"
-            disabled={!selectedTeam}
-            aria-current={selectedTeam && !selectedPlayer ? "step" : undefined}
-            onClick={() => setSelectedPlayerId(null)}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00519F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111416] disabled:cursor-default ${selectedTeam && !selectedPlayer ? "bg-[#00519F] text-white" : "text-white/70 hover:bg-white/5 hover:text-white disabled:text-white/35"}`}
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-current/30 text-[11px] tabular-nums">2</span>
-            <span>{currentTeam?.abbreviation || "Jogadores"}</span>
-          </button>
-          <ArrowRight size={14} aria-hidden="true" className="shrink-0 text-white/30" />
-          <span
-            aria-current={selectedPlayer ? "step" : undefined}
-            className={`inline-flex min-w-0 shrink-0 items-center gap-2 rounded-lg px-3 py-2 font-semibold ${selectedPlayer ? "bg-[#00519F] text-white" : "text-white/35"}`}
-          >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current/30 text-[11px] tabular-nums">3</span>
-            <span className="max-w-[180px] truncate sm:max-w-none">
-              {selectedPlayer?.player || "Mercados"}
+        <nav aria-label="Etapas da análise" className="mb-7 w-full py-2">
+          <div className="relative grid w-full grid-cols-3">
+            <div
+              aria-hidden="true"
+              className="absolute left-[16.6667%] right-[16.6667%] top-[23px] h-0.5 bg-white/20"
+            >
+              <div
+                className="h-full bg-[#00519F] transition-[width] duration-300"
+                style={{
+                  width: selectedPlayer ? "100%" : selectedTeam ? "50%" : "0%",
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              aria-current={!selectedTeam ? "step" : undefined}
+              onClick={() => {
+                setSelectedTeam(null);
+                setSelectedPlayerId(null);
+              }}
+              className="group relative z-10 flex min-w-0 flex-col items-center gap-2 rounded-md text-xs font-semibold text-white/80 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00519F] focus-visible:ring-offset-4 focus-visible:ring-offset-[#07090B] sm:text-sm"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#00519F] bg-[#07090B] text-[#00519F] shadow-[0_0_0_4px_rgba(0,81,159,0.12)]">
+                <UsersRound aria-hidden="true" className="h-5 w-5" />
+              </span>
+              <span className="max-w-full truncate">Times</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={!selectedTeam}
+              aria-current={
+                selectedTeam && !selectedPlayer ? "step" : undefined
+              }
+              onClick={() => setSelectedPlayerId(null)}
+              className={`group relative z-10 flex min-w-0 flex-col items-center gap-2 rounded-md text-xs font-semibold transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00519F] focus-visible:ring-offset-4 focus-visible:ring-offset-[#07090B] disabled:cursor-default disabled:text-white/35 sm:text-sm ${selectedTeam ? "text-white" : "text-white/55"}`}
+            >
+              <span
+                className={`flex h-12 w-12 items-center justify-center rounded-full border-2 bg-[#07090B] transition-colors ${selectedTeam ? "border-[#00519F] shadow-[0_0_0_4px_rgba(0,81,159,0.12)]" : "border-white/20"}`}
+              >
+                {selectedTeam ? (
+                  <TeamLogo team={selectedTeam} size="sm" />
+                ) : (
+                  <span className="h-2.5 w-2.5 rounded-full bg-white/25" />
+                )}
+              </span>
+              <span className="max-w-full truncate">
+                {currentTeam?.abbreviation || "Jogadores"}
+              </span>
+            </button>
+
+            <span
+              aria-current={selectedPlayer ? "step" : undefined}
+              className={`relative z-10 flex min-w-0 flex-col items-center gap-2 text-xs font-semibold sm:text-sm ${selectedPlayer ? "text-white" : "text-white/35"}`}
+            >
+              <span
+                className={`flex h-12 w-12 items-center justify-center rounded-full border-2 bg-[#07090B] transition-colors ${selectedPlayer ? "border-[#00519F] shadow-[0_0_0_4px_rgba(0,81,159,0.12)]" : "border-white/20"}`}
+              >
+                {selectedPlayer ? (
+                  <PlayerAvatar name={selectedPlayer.player} size="sm" />
+                ) : (
+                  <span className="h-2.5 w-2.5 rounded-full bg-white/25" />
+                )}
+              </span>
+              <span className="max-w-full truncate px-1">
+                {selectedPlayer?.player || "Mercados"}
+              </span>
             </span>
-          </span>
+          </div>
         </nav>
 
         {loading && (
