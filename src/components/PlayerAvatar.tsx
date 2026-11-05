@@ -214,6 +214,7 @@ const nbaPlayerIds: Record<string, string> = {
   "bilal coulibaly": "espn:5104155",
   "kyshawn george": "espn:5174563",
   "tre johnson": "espn:5238230",
+  "oso ighodaro": "1642345",
 };
 
 function normalizePlayerName(name: string): string {

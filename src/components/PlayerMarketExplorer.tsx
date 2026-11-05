@@ -1297,6 +1297,36 @@ export function PlayerMarketExplorer() {
                   </div>
                 </div>
 
+                <div className="flex flex-wrap items-center gap-2 border-b border-white/8 px-4 py-3 sm:px-6">
+                  <span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-white/40">
+                    Últimos jogos
+                  </span>
+                  {GAME_WINDOWS.map((windowSize) => {
+                    const available = Math.min(
+                      windowSize,
+                      selectedPlayer.logs.length,
+                    );
+                    const shortened = selectedPlayer.logs.length < windowSize;
+                    return (
+                      <button
+                        key={windowSize}
+                        type="button"
+                        aria-pressed={gameWindow === windowSize}
+                        title={`Mostrar até os últimos ${windowSize} jogos desta temporada (${available} disponíveis)`}
+                        onClick={() => setGameWindow(windowSize)}
+                        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${gameWindow === windowSize ? "bg-[#00519F] text-white" : "bg-[#15181B] text-white/60 hover:text-white"}`}
+                      >
+                        L{windowSize}
+                        {shortened ? ` · ${available}` : ""}
+                      </button>
+                    );
+                  })}
+                  <span className="ml-1 rounded-lg bg-[#15181B] px-3 py-2 text-xs text-white/55">
+                    Temporada {season} · {logs.length}{" "}
+                    {logs.length === 1 ? "jogo" : "jogos"} exibidos
+                  </span>
+                </div>
+
                 <div className="p-3 sm:p-5">
                   <div className="rounded-2xl bg-[#090B0D] p-4 text-white sm:p-6">
                     <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
@@ -1626,36 +1656,6 @@ export function PlayerMarketExplorer() {
                             {item.label}
                           </button>
                         ))}
-                      </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-white/40">
-                          Últimos jogos
-                        </span>
-                        {GAME_WINDOWS.map((windowSize) => {
-                          const available = Math.min(
-                            windowSize,
-                            selectedPlayer.logs.length,
-                          );
-                          const shortened =
-                            selectedPlayer.logs.length < windowSize;
-                          return (
-                            <button
-                              key={windowSize}
-                              type="button"
-                              aria-pressed={gameWindow === windowSize}
-                              title={`Mostrar até os últimos ${windowSize} jogos desta temporada (${available} disponíveis)`}
-                              onClick={() => setGameWindow(windowSize)}
-                              className={`rounded-lg px-3 py-2 text-xs font-bold transition ${gameWindow === windowSize ? "bg-[#00519F] text-white" : "bg-[#15181B] text-white/60 hover:text-white"}`}
-                            >
-                              L{windowSize}
-                              {shortened ? ` · ${available}` : ""}
-                            </button>
-                          );
-                        })}
-                        <span className="ml-1 rounded-lg bg-[#15181B] px-3 py-2 text-xs text-white/55">
-                          Temporada {season} · {logs.length}{" "}
-                          {logs.length === 1 ? "jogo" : "jogos"} exibidos
-                        </span>
                       </div>
                     </div>
                     <p className="mt-4 text-[10px] leading-5 text-white/40">
