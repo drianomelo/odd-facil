@@ -40,6 +40,12 @@ function number(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function numberOrNull(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function minutes(value) {
   const raw = String(value ?? '').trim();
   const clock = raw.match(/^(\d+):(\d{1,2})$/);
@@ -53,6 +59,13 @@ function made(value) {
   if (typeof value === 'number') return value;
   const match = String(value ?? '').match(/^(\d+)/);
   return match ? number(match[1]) : 0;
+}
+
+function madeAttempt(value) {
+  const match = String(value ?? '').trim().match(/^(\d+)[ ]*[-/][ ]*(\d+)$/);
+  return match
+    ? { made: number(match[1]), attempted: number(match[2]) }
+    : { made: null, attempted: null };
 }
 
 function normalize(value) {
@@ -130,6 +143,9 @@ function extractPlayers(summary, event, season) {
       };
       const playerMinutes = minutes(stat('min', 'minutes'));
       const playerId = String(athlete.id || `${normalize(name)}-${normalize(teamName)}`);
+      const fieldGoals = madeAttempt(stat('fg', 'fieldgoals'));
+      const threePointers = madeAttempt(stat('3pt', 'threepointfieldgoals'));
+      const freeThrows = madeAttempt(stat('ft', 'freethrows'));
       rows.push({
         season,
         eventId: String(event.id),
@@ -143,7 +159,19 @@ function extractPlayers(summary, event, season) {
         points: Math.round(number(stat('pts', 'points'))),
         rebounds: Math.round(number(stat('reb', 'rebounds', 'totalrebounds'))),
         assists: Math.round(number(stat('ast', 'assists'))),
-        threes: made(stat('3pt', '3pm', 'threepointfieldgoalsmade')),
+        threes: threePointers.made ?? made(stat('3pt', '3pm', 'threepointfieldgoalsmade')),
+        fieldGoalsMade: fieldGoals.made,
+        fieldGoalsAttempted: fieldGoals.attempted,
+        threesAttempted: threePointers.attempted,
+        freeThrowsMade: freeThrows.made,
+        freeThrowsAttempted: freeThrows.attempted,
+        offensiveRebounds: Math.round(number(stat('oreb', 'offensiverebounds'))),
+        defensiveRebounds: Math.round(number(stat('dreb', 'defensiverebounds'))),
+        steals: Math.round(number(stat('stl', 'steals'))),
+        blocks: Math.round(number(stat('blk', 'blocks'))),
+        turnovers: Math.round(number(stat('to', 'turnovers'))),
+        personalFouls: Math.round(number(stat('pf', 'fouls', 'personalfouls'))),
+        plusMinus: numberOrNull(stat('+/-', 'plusminus', 'plus_minus')),
         source: 'espn-public',
         sourceUrl,
       });
@@ -173,9 +201,14 @@ async function main() {
   }
 
   const eventsById = new Map();
-  for (const date of dates) {
-    const body = await fetchJson(`${API_ROOT}/scoreboard?dates=${date}`, `ESPN scoreboard ${date}`);
-    for (const event of body.events || []) if (finalEvent(event)) eventsById.set(String(event.id), event);
+  const scoreboardConcurrency = 4;
+  for (let offset = 0; offset < dates.length; offset += scoreboardConcurrency) {
+    const batch = await Promise.all(dates.slice(offset, offset + scoreboardConcurrency).map(date =>
+      fetchJson(`${API_ROOT}/scoreboard?dates=${date}`, `ESPN scoreboard ${date}`),
+    ));
+    for (const body of batch) {
+      for (const event of body.events || []) if (finalEvent(event)) eventsById.set(String(event.id), event);
+    }
   }
 
   const events = [...eventsById.values()].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -185,9 +218,13 @@ async function main() {
   }
 
   const playerRows = [];
-  for (const event of events) {
-    const summary = await fetchJson(`${API_ROOT}/summary?event=${encodeURIComponent(event.id)}`, `ESPN summary ${event.id}`);
-    playerRows.push(...extractPlayers(summary, event, season));
+  const summaryConcurrency = 4;
+  for (let offset = 0; offset < events.length; offset += summaryConcurrency) {
+    const batch = await Promise.all(events.slice(offset, offset + summaryConcurrency).map(async event => {
+      const summary = await fetchJson(`${API_ROOT}/summary?event=${encodeURIComponent(event.id)}`, `ESPN summary ${event.id}`);
+      return extractPlayers(summary, event, season);
+    }));
+    playerRows.push(...batch.flat());
   }
 
   const sql = postgres(process.env.DATABASE_URL, { max: 1, connect_timeout: 10, prepare: false });
@@ -201,10 +238,18 @@ async function main() {
         await transaction`
           insert into player_game_stats (
             season, event_id, game_date, player_id, player_name, team, opponent,
-            minutes, played, points, rebounds, assists, threes, source, source_url, imported_at
+            minutes, played, points, rebounds, assists, threes,
+            field_goals_made, field_goals_attempted, threes_attempted,
+            free_throws_made, free_throws_attempted, offensive_rebounds,
+            defensive_rebounds, steals, blocks, turnovers, personal_fouls, plus_minus,
+            source, source_url, imported_at
           ) values (
             ${row.season}, ${row.eventId}, ${row.gameDate}, ${row.playerId}, ${row.playerName}, ${row.team}, ${row.opponent},
-            ${row.minutes}, ${row.played}, ${row.points}, ${row.rebounds}, ${row.assists}, ${row.threes}, ${row.source}, ${row.sourceUrl}, now()
+            ${row.minutes}, ${row.played}, ${row.points}, ${row.rebounds}, ${row.assists}, ${row.threes},
+            ${row.fieldGoalsMade}, ${row.fieldGoalsAttempted}, ${row.threesAttempted},
+            ${row.freeThrowsMade}, ${row.freeThrowsAttempted}, ${row.offensiveRebounds},
+            ${row.defensiveRebounds}, ${row.steals}, ${row.blocks}, ${row.turnovers}, ${row.personalFouls}, ${row.plusMinus},
+            ${row.source}, ${row.sourceUrl}, now()
           )
           on conflict (event_id, player_id) do update set
             season = excluded.season,
@@ -218,6 +263,18 @@ async function main() {
             rebounds = excluded.rebounds,
             assists = excluded.assists,
             threes = excluded.threes,
+            field_goals_made = excluded.field_goals_made,
+            field_goals_attempted = excluded.field_goals_attempted,
+            threes_attempted = excluded.threes_attempted,
+            free_throws_made = excluded.free_throws_made,
+            free_throws_attempted = excluded.free_throws_attempted,
+            offensive_rebounds = excluded.offensive_rebounds,
+            defensive_rebounds = excluded.defensive_rebounds,
+            steals = excluded.steals,
+            blocks = excluded.blocks,
+            turnovers = excluded.turnovers,
+            personal_fouls = excluded.personal_fouls,
+            plus_minus = excluded.plus_minus,
             source = excluded.source,
             source_url = excluded.source_url,
             imported_at = now()

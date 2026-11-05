@@ -28,6 +28,18 @@ type PlayerLog = {
   rebounds: number;
   assists: number;
   threes: number;
+  fieldGoalsMade: number | null;
+  fieldGoalsAttempted: number | null;
+  threesAttempted: number | null;
+  freeThrowsMade: number | null;
+  freeThrowsAttempted: number | null;
+  offensiveRebounds: number;
+  defensiveRebounds: number;
+  steals: number;
+  blocks: number;
+  turnovers: number;
+  personalFouls: number;
+  plusMinus: number | null;
 };
 
 type SeasonPlayer = {
@@ -141,6 +153,18 @@ function formatNumber(value: number) {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
+}
+
+function formatMinutes(value: number) {
+  const totalSeconds = Math.round(value * 60);
+  const wholeMinutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return wholeMinutes + ":" + seconds;
+}
+
+function shootingPercentage(made: number | null, attempted: number | null) {
+  if (made === null || attempted === null || attempted === 0) return "—";
+  return ((made / attempted) * 100).toFixed(1);
 }
 
 function dateLabel(date: string) {
@@ -1494,49 +1518,75 @@ export function PlayerMarketExplorer() {
 
                       {recentGameSummary.length ? (
                         <div className="overflow-x-auto">
-                          <table className="w-full min-w-[680px] text-left text-xs">
+                          <table className="w-full min-w-[1480px] text-left text-xs">
                             <thead className="bg-[#15181B] text-[9px] font-bold uppercase tracking-wider text-white/45">
                               <tr>
-                                <th className="px-4 py-2.5">Data</th>
-                                <th className="px-3 py-2.5">Adversário</th>
-                                <th className="px-3 py-2.5 text-right">MIN</th>
-                                <th className="px-3 py-2.5 text-right">PTS</th>
-                                <th className="px-3 py-2.5 text-right">REB</th>
-                                <th className="px-3 py-2.5 text-right">AST</th>
-                                <th className="px-3 py-2.5 text-right">3PM</th>
-                                <th className="px-4 py-2.5 text-right">PRA</th>
+                                <th className="sticky left-0 z-10 bg-[#15181B] px-4 py-2.5">PLAYER</th>
+                                <th className="px-2 py-2.5 text-right">MIN</th>
+                                <th className="px-2 py-2.5 text-right">FGM</th>
+                                <th className="px-2 py-2.5 text-right">FGA</th>
+                                <th className="px-2 py-2.5 text-right">FG%</th>
+                                <th className="px-2 py-2.5 text-right">3PM</th>
+                                <th className="px-2 py-2.5 text-right">3PA</th>
+                                <th className="px-2 py-2.5 text-right">3P%</th>
+                                <th className="px-2 py-2.5 text-right">FTM</th>
+                                <th className="px-2 py-2.5 text-right">FTA</th>
+                                <th className="px-2 py-2.5 text-right">FT%</th>
+                                <th className="px-2 py-2.5 text-right">OREB</th>
+                                <th className="px-2 py-2.5 text-right">DREB</th>
+                                <th className="px-2 py-2.5 text-right">REB</th>
+                                <th className="px-2 py-2.5 text-right">AST</th>
+                                <th className="px-2 py-2.5 text-right">STL</th>
+                                <th className="px-2 py-2.5 text-right">BLK</th>
+                                <th className="px-2 py-2.5 text-right">TO</th>
+                                <th className="px-2 py-2.5 text-right">PF</th>
+                                <th className="px-2 py-2.5 text-right">PTS</th>
+                                <th className="px-4 py-2.5 text-right">+/-</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
                               {recentGameSummary.map((log) => (
                                 <tr key={log.eventId} className="text-white/75">
-                                  <td className="whitespace-nowrap px-4 py-3 font-medium text-white/55">
-                                    {dateLabel(log.date)}
+                                  <td className="sticky left-0 z-[1] min-w-[190px] bg-[#101315] px-4 py-2.5">
+                                    <div className="flex items-center gap-2.5">
+                                      <PlayerAvatar name={selectedPlayer.player} size="sm" />
+                                      <span className="min-w-0">
+                                        <span className="block truncate font-semibold text-white">
+                                          {selectedPlayer.player}
+                                        </span>
+                                        <span className="mt-0.5 flex items-center gap-1 text-[9px] text-white/45">
+                                          {dateLabel(log.date)}
+                                          <span>·</span>
+                                          vs
+                                          <TeamLogo team={log.opponent} size="xs" />
+                                          {getNbaTeamInfo(log.opponent)?.abbreviation || log.opponent}
+                                        </span>
+                                      </span>
+                                    </div>
                                   </td>
-                                  <td className="px-3 py-3">
-                                    <span className="inline-flex items-center gap-2 font-semibold text-white/80">
-                                      <TeamLogo team={log.opponent} size="xs" />
-                                      {getNbaTeamInfo(log.opponent)?.abbreviation ||
-                                        log.opponent}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-3 text-right tabular-nums">
-                                    {formatNumber(log.minutes)}
-                                  </td>
-                                  <td className="px-3 py-3 text-right font-bold tabular-nums text-white">
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{formatMinutes(log.minutes)}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.fieldGoalsMade ?? "—"}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.fieldGoalsAttempted ?? "—"}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{shootingPercentage(log.fieldGoalsMade, log.fieldGoalsAttempted)}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.threes}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.threesAttempted ?? "—"}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{shootingPercentage(log.threes, log.threesAttempted)}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.freeThrowsMade ?? "—"}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.freeThrowsAttempted ?? "—"}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{shootingPercentage(log.freeThrowsMade, log.freeThrowsAttempted)}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.offensiveRebounds}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.defensiveRebounds}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.rebounds}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.assists}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.steals}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.blocks}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.turnovers}</td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums">{log.personalFouls}</td>
+                                  <td className="px-2 py-2.5 text-right font-bold tabular-nums text-white">
                                     {log.points}
                                   </td>
-                                  <td className="px-3 py-3 text-right tabular-nums">
-                                    {log.rebounds}
-                                  </td>
-                                  <td className="px-3 py-3 text-right tabular-nums">
-                                    {log.assists}
-                                  </td>
-                                  <td className="px-3 py-3 text-right tabular-nums">
-                                    {log.threes}
-                                  </td>
-                                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-[#00D084]">
-                                    {log.points + log.rebounds + log.assists}
+                                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-[#00D084]">
+                                    {log.plusMinus === null ? "—" : log.plusMinus}
                                   </td>
                                 </tr>
                               ))}

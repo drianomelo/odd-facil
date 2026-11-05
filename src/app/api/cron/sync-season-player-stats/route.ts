@@ -30,6 +30,13 @@ function parseMinutes(value: unknown) {
   return Number(raw) || 0;
 }
 
+function parseMadeAttempt(value: unknown) {
+  const match = String(value ?? '').trim().match(/^(\d+)[ ]*[-/][ ]*(\d+)$/);
+  return match
+    ? { made: Number(match[1]), attempted: Number(match[2]) }
+    : { made: null, attempted: null };
+}
+
 async function json(url: string) {
   const response = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(18000) });
   if (!response.ok) throw new Error(`ESPN HTTP ${response.status}: ${url}`);
@@ -55,8 +62,43 @@ function extractRows(summary: any, event: any, season: string) {
       if (!playerName) continue;
       const stat = (...keys: string[]) => item.stats?.[labels.findIndex((label: string) => keys.includes(label.toLowerCase()))];
       const mins = parseMinutes(stat('min', 'minutes'));
-      const threes = String(stat('3pt', '3pm', 'threepointfieldgoalsmade') ?? '').match(/^(\d+)/);
-      rows.push({ season, eventId: String(event.id), gameDate: new Date(event.date), playerId: String(athlete.id || normalize(playerName)), playerName, team: teamName, opponent: opponent.displayName || opponent.name || opponent.abbreviation || '', minutes: mins.toFixed(2), played: mins > 0, points: Number(stat('pts', 'points')) || 0, rebounds: Number(stat('reb', 'rebounds', 'totalrebounds')) || 0, assists: Number(stat('ast', 'assists')) || 0, threes: Number(threes?.[1] || 0), sourceUrl: `https://www.espn.com/nba/boxscore/_/gameId/${event.id}` });
+      const fieldGoals = parseMadeAttempt(stat('fg', 'fieldgoals'));
+      const threePointerStat = stat('3pt', '3pm', 'threepointfieldgoalsmade');
+      const threePointers = parseMadeAttempt(threePointerStat);
+      const threeMadeFallback = String(threePointerStat ?? '').match(/^(\d+)/);
+      const freeThrows = parseMadeAttempt(stat('ft', 'freethrows'));
+      const plusMinusRaw = stat('+/-', 'plusminus', 'plus_minus');
+      const numericStat = (...keys: string[]) => Number(stat(...keys)) || 0;
+      rows.push({
+        season,
+        eventId: String(event.id),
+        gameDate: new Date(event.date),
+        playerId: String(athlete.id || normalize(playerName)),
+        playerName,
+        team: teamName,
+        opponent: opponent.displayName || opponent.name || opponent.abbreviation || '',
+        minutes: mins.toFixed(2),
+        played: mins > 0,
+        points: numericStat('pts', 'points'),
+        rebounds: numericStat('reb', 'rebounds', 'totalrebounds'),
+        assists: numericStat('ast', 'assists'),
+        threes: threePointers.made ?? Number(threeMadeFallback?.[1] || 0),
+        fieldGoalsMade: fieldGoals.made,
+        fieldGoalsAttempted: fieldGoals.attempted,
+        threesAttempted: threePointers.attempted,
+        freeThrowsMade: freeThrows.made,
+        freeThrowsAttempted: freeThrows.attempted,
+        offensiveRebounds: numericStat('oreb', 'offensiverebounds'),
+        defensiveRebounds: numericStat('dreb', 'defensiverebounds'),
+        steals: numericStat('stl', 'steals'),
+        blocks: numericStat('blk', 'blocks'),
+        turnovers: numericStat('to', 'turnovers'),
+        personalFouls: numericStat('pf', 'fouls', 'personalfouls'),
+        plusMinus: plusMinusRaw === undefined || plusMinusRaw === null || plusMinusRaw === ''
+          ? null
+          : Number(plusMinusRaw),
+        sourceUrl: `https://www.espn.com/nba/boxscore/_/gameId/${event.id}`,
+      });
     }
   }
   if (!rows.length) throw new Error(`Boxscore sem atletas para ${event.id}`);
@@ -107,9 +149,9 @@ export async function GET(request: NextRequest) {
     try {
       await sql.begin(async tx => {
         for (const row of rows) await tx`
-          insert into player_game_stats (season,event_id,game_date,player_id,player_name,team,opponent,minutes,played,points,rebounds,assists,threes,source,source_url,imported_at)
-          values (${row.season},${row.eventId},${row.gameDate},${row.playerId},${row.playerName},${row.team},${row.opponent},${row.minutes},${row.played},${row.points},${row.rebounds},${row.assists},${row.threes},'espn-public',${row.sourceUrl},now())
-          on conflict (event_id,player_id) do update set game_date=excluded.game_date,player_name=excluded.player_name,team=excluded.team,opponent=excluded.opponent,minutes=excluded.minutes,played=excluded.played,points=excluded.points,rebounds=excluded.rebounds,assists=excluded.assists,threes=excluded.threes,source=excluded.source,source_url=excluded.source_url,imported_at=now()`;
+          insert into player_game_stats (season,event_id,game_date,player_id,player_name,team,opponent,minutes,played,points,rebounds,assists,threes,field_goals_made,field_goals_attempted,threes_attempted,free_throws_made,free_throws_attempted,offensive_rebounds,defensive_rebounds,steals,blocks,turnovers,personal_fouls,plus_minus,source,source_url,imported_at)
+          values (${row.season},${row.eventId},${row.gameDate},${row.playerId},${row.playerName},${row.team},${row.opponent},${row.minutes},${row.played},${row.points},${row.rebounds},${row.assists},${row.threes},${row.fieldGoalsMade},${row.fieldGoalsAttempted},${row.threesAttempted},${row.freeThrowsMade},${row.freeThrowsAttempted},${row.offensiveRebounds},${row.defensiveRebounds},${row.steals},${row.blocks},${row.turnovers},${row.personalFouls},${row.plusMinus},'espn-public',${row.sourceUrl},now())
+          on conflict (event_id,player_id) do update set game_date=excluded.game_date,player_name=excluded.player_name,team=excluded.team,opponent=excluded.opponent,minutes=excluded.minutes,played=excluded.played,points=excluded.points,rebounds=excluded.rebounds,assists=excluded.assists,threes=excluded.threes,field_goals_made=excluded.field_goals_made,field_goals_attempted=excluded.field_goals_attempted,threes_attempted=excluded.threes_attempted,free_throws_made=excluded.free_throws_made,free_throws_attempted=excluded.free_throws_attempted,offensive_rebounds=excluded.offensive_rebounds,defensive_rebounds=excluded.defensive_rebounds,steals=excluded.steals,blocks=excluded.blocks,turnovers=excluded.turnovers,personal_fouls=excluded.personal_fouls,plus_minus=excluded.plus_minus,source=excluded.source,source_url=excluded.source_url,imported_at=now()`;
 
         const pending = await tx`select leg.id,leg.player_name,leg.player_team,leg.opponent_team,leg.market,leg.line,leg.selection,leg.commence_time from player_prop_ticket_legs leg join player_prop_tickets ticket on ticket.id=leg.ticket_id where ticket.source='manual' and leg.result is null and leg.commence_time < now()`;
         for (const leg of pending) {

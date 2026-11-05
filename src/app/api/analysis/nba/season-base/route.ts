@@ -64,6 +64,18 @@ export async function GET() {
           rebounds: Number(game.rebounds),
           assists: Number(game.assists),
           threes: Number(game.threes),
+          fieldGoalsMade: game.field_goals_made === null ? null : Number(game.field_goals_made),
+          fieldGoalsAttempted: game.field_goals_attempted === null ? null : Number(game.field_goals_attempted),
+          threesAttempted: game.threes_attempted === null ? null : Number(game.threes_attempted),
+          freeThrowsMade: game.free_throws_made === null ? null : Number(game.free_throws_made),
+          freeThrowsAttempted: game.free_throws_attempted === null ? null : Number(game.free_throws_attempted),
+          offensiveRebounds: game.offensive_rebounds,
+          defensiveRebounds: game.defensive_rebounds,
+          steals: game.steals,
+          blocks: game.blocks,
+          turnovers: game.turnovers,
+          personalFouls: game.personal_fouls,
+          plusMinus: game.plus_minus,
         })),
       };
     }).sort((a, b) => b.games - a.games || b.points - a.points || a.player.localeCompare(b.player, 'pt-BR'));
