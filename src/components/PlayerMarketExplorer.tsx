@@ -134,6 +134,7 @@ type SeasonResponse = {
   error?: string;
 };
 const MIN_AVERAGE_MINUTES = 20;
+const MAX_ROTATION_PLAYERS_PER_TEAM = 7;
 const MIN_5_OF_5_OVER_DECIMAL_ODDS = 1.6;
 
 function normalize(value: string) {
@@ -250,10 +251,18 @@ export function PlayerMarketExplorer() {
       })
       .then((body) => {
         if (!active) return;
+        const eligible = (body.players || [])
+          .filter((player) => player.minutes >= MIN_AVERAGE_MINUTES)
+          .sort((a, b) => b.minutes - a.minutes || b.games - a.games);
+        const teamSlots = new Map<string, number>();
         setPlayers(
-          (body.players || []).filter(
-            (player) => player.minutes > MIN_AVERAGE_MINUTES,
-          ),
+          eligible.filter((player) => {
+            const team = normalizeTeam(player.team);
+            const used = teamSlots.get(team) || 0;
+            if (used >= MAX_ROTATION_PLAYERS_PER_TEAM) return false;
+            teamSlots.set(team, used + 1);
+            return true;
+          }),
         );
         setSeason(body.season || "");
       })
@@ -741,7 +750,7 @@ export function PlayerMarketExplorer() {
                     Linhas superadas em 100% dos últimos 5 jogos
                   </h2>
                   <p className="mt-1 max-w-3xl text-sm leading-5 text-white/55">
-                    Todos os times · atletas acima de 20 minutos por jogo ·
+                    Até sete atletas por time com média de 20 minutos ou mais ·
                     linhas de Mais de comparadas com cinco jogos desta
                     temporada.
                   </p>
@@ -917,7 +926,7 @@ export function PlayerMarketExplorer() {
                       {team.abbreviation}
                     </span>
                     <span className="mt-0.5 text-xs text-white/45">
-                      {count ? `${count} elegíveis` : "Sem atleta >20 min"}
+                      {count ? `${count} elegíveis` : "Sem atleta ≥20 min"}
                     </span>
                   </button>
                 );
@@ -1166,8 +1175,8 @@ export function PlayerMarketExplorer() {
                   Nenhum atleta elegível neste time
                 </h3>
                 <p className="mx-auto mt-1 max-w-lg text-sm leading-6 text-white/55">
-                  A análise só lista jogadores com média superior a 20 minutos
-                  por jogo nesta temporada.
+                  A análise lista até sete jogadores por time com média
+                  de 20 minutos ou mais nesta temporada.
                 </p>
               </div>
             )}
